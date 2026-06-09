@@ -1,0 +1,81 @@
+name: Validate
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  fmt:
+    name: Format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.9"
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+
+  validate:
+    name: Validate modules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.9"
+
+      # Shared provider plugin cache — providers downloaded once across all modules
+      - name: Cache Terraform providers
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: terraform-providers-${{ runner.os }}-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: terraform-providers-${{ runner.os }}-
+
+      - name: Create plugin cache dir
+        run: mkdir -p ~/.terraform.d/plugin-cache
+
+      - name: Validate all modules
+        env:
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+        run: |
+          failed=0
+          # Find all directories that contain .tf files
+          while IFS= read -r dir; do
+            echo "::group::$dir"
+            if ! terraform -chdir="$dir" init -backend=false -input=false; then
+              echo "::error::Init failed in $dir"
+              failed=1
+            elif ! terraform -chdir="$dir" validate; then
+              echo "::error::Validate failed in $dir"
+              failed=1
+            else
+              echo "OK: $dir"
+            fi
+            echo "::endgroup::"
+          done < <(find modules -name "*.tf" -exec dirname {} \; | sort -u)
+          exit $failed
+
+  readme-check:
+    name: README presence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check every module has a README.md
+        run: |
+          failed=0
+          while IFS= read -r dir; do
+            if [ ! -f "$dir/README.md" ]; then
+              echo "::error::Missing README.md in $dir"
+              failed=1
+            fi
+          done < <(find modules -name "*.tf" -exec dirname {} \; | sort -u)
+          if [ $failed -eq 0 ]; then
+            echo "All modules have a README.md"
+          fi
+          exit $failed

@@ -1,0 +1,4 @@
+# Ignore config with secrets in it
+*.yaml
+gotk-bootstrap-k8s
+kubernetes-config
