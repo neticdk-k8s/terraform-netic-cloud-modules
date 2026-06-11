@@ -9,7 +9,7 @@ resource "ovh_cloud_project_containerregistry" "registry" {
 }
 
 resource "ovh_cloud_project_containerregistry_ip_restrictions_management" "ip_restrictions" {
-  count        = var.container_registry.deploy && length(var.ip_restrictions) > 0 ? 1 : 0
+  count = var.container_registry.deploy && length(var.ip_restrictions) > 0 ? 1 : 0
 
   service_name    = ovh_cloud_project_containerregistry.registry[0].service_name
   registry_id     = ovh_cloud_project_containerregistry.registry[0].id

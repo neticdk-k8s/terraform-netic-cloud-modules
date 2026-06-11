@@ -6,7 +6,7 @@ variable "cluster_config" {
   type = object({
     name    = string
     version = string
-    tags        = optional(map(string), {})
+    tags    = optional(map(string), {})
   })
   description = "Core Kubernetes cluster settings"
 }
@@ -20,7 +20,7 @@ variable "node_config" {
     min_count          = optional(number, null)
     max_count          = optional(number, null)
     monthly_billed     = optional(bool, false)
-    anti_affinity      = optional(bool, true)       # Spread nodes across availability zones
+    anti_affinity      = optional(bool, true) # Spread nodes across availability zones
     availability_zones = optional(list(string), [])
     labels             = optional(map(string), {})
     taints             = optional(list(any), [])

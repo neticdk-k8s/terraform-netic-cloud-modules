@@ -1,6 +1,8 @@
 # Kubernetes — Wrapper
 
-Fælles indgangspunkt til at deploye et managed Kubernetes-cluster på enten **OVHcloud** eller **Azure**. Cloud-valget sker via `cloud_settings.cloud_provider`.
+Fælles indgangspunkt til at deploye et managed Kubernetes-cluster på enten **OVHcloud** eller **Azure**.
+
+Provider vælges ved at sætte præcis ét af `cloud_settings.ovh` eller `cloud_settings.azure`.
 
 ## Usage
 
@@ -24,10 +26,12 @@ module "kubernetes" {
   }
 
   cloud_settings = {
-    cloud_provider     = "ovh"
-    region             = "GRA11"
-    project_identifier = var.ovh_project_id
-    network_id         = module.network.network_id
+    region = "GRA11"
+
+    ovh = {
+      project_id         = var.ovh_project_id
+      private_network_id = module.network.network_id
+    }
   }
 }
 
@@ -57,10 +61,12 @@ module "kubernetes" {
   }
 
   cloud_settings = {
-    cloud_provider     = "azure"
-    region             = "westeurope"
-    project_identifier = "my-rg"
-    network_id         = module.network.subnet_ids["aks"]
+    region = "westeurope"
+
+    azure = {
+      resource_group = "my-rg"
+      subnet_id      = module.network.subnet_ids["aks"]
+    }
   }
 }
 ```
@@ -85,6 +91,7 @@ module "kubernetes" {
 | `min_count` | `number` | `null` | Minimum antal noder |
 | `max_count` | `number` | `null` | Maksimum antal noder |
 | `availability_zones` | `list(string)` | `[]` | Availability zones |
+| `k8s_version` | `string` | `null` | Nodepool-version (kun Azure); `null` = samme som cluster |
 | `monthly_billed` | `bool` | `false` | OVH: månedlig fakturering |
 | `anti_affinity` | `bool` | `true` | OVH: spred noder på tværs af zoner |
 | `labels` | `map(string)` | `{}` | Kubernetes node labels |
@@ -94,14 +101,17 @@ module "kubernetes" {
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `cloud_provider` | `string` | — | `"azure"` eller `"ovh"` |
 | `region` | `string` | — | Azure location eller OVH region |
-| `project_identifier` | `string` | — | Azure resource group eller OVH project ID |
-| `network_id` | `string` | `null` | Subnet ID (Azure) eller private network ID (OVH) |
 | `ip_restrictions` | `list(string)` | `[]` | CIDR-ranges med adgang til Kubernetes API |
-| `azure_dns_prefix` | `string` | `null` | DNS-præfix til AKS (kun Azure) |
-| `service_cidr` | `string` | `null` | Azure CNI service CIDR (default: `172.16.0.0/16`) |
-| `dns_service_ip` | `string` | `null` | Azure CNI DNS service IP (default: `172.16.0.10`) |
+| `azure` | `object` | `null` | Azure-config — sæt præcis ét af `azure` / `ovh` |
+| `azure.resource_group` | `string` | — | Resource group |
+| `azure.subnet_id` | `string` | `null` | VNet subnet til nodepoolen |
+| `azure.dns_prefix` | `string` | `null` | DNS-præfix til AKS; `null` = clusternavn |
+| `azure.service_cidr` | `string` | `"172.16.0.0/16"` | Azure CNI service CIDR |
+| `azure.dns_service_ip` | `string` | `"172.16.0.10"` | Azure CNI DNS service IP |
+| `ovh` | `object` | `null` | OVH-config |
+| `ovh.project_id` | `string` | — | OVH project ID |
+| `ovh.private_network_id` | `string` | `null` | Privat netværk (vRack) til noderne |
 
 ## Outputs
 

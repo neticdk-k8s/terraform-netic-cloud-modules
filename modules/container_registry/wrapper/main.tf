@@ -1,13 +1,17 @@
+locals {
+  is_ovh = var.container_registry.ovh != null
+}
+
 module "ovh" {
-  count  = var.cloud_provider == "ovh" ? 1 : 0
+  count  = local.is_ovh ? 1 : 0
   source = "../ovh"
 
-  ovh_project_id = try(var.ovh_config.project_id, "")
+  ovh_project_id = var.container_registry.ovh.project_id
 
   container_registry = {
     deploy = var.container_registry.deploy
     name   = var.container_registry.name
-    region = try(var.ovh_config.region, "")
+    region = var.container_registry.ovh.region
   }
 
   registry_users  = var.registry_users
@@ -15,15 +19,15 @@ module "ovh" {
 }
 
 module "azure" {
-  count  = var.cloud_provider == "azure" ? 1 : 0
+  count  = local.is_ovh ? 0 : 1
   source = "../azure"
 
   container_registry = {
     deploy         = var.container_registry.deploy
     name           = var.container_registry.name
-    location       = try(var.azure_config.location, "")
-    resource_group = try(var.azure_config.resource_group, "")
-    sku            = try(var.azure_config.sku, "Basic")
+    location       = var.container_registry.azure.location
+    resource_group = var.container_registry.azure.resource_group
+    sku            = var.container_registry.azure.sku
   }
 
   registry_users  = var.registry_users

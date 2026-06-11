@@ -3,8 +3,8 @@ variable "security_group" {
     name = string
     rules = optional(list(object({
       name      = string
-      direction = string           # ingress / egress
-      protocol  = string           # tcp, udp, icmp, *
+      direction = string                # ingress / egress
+      protocol  = string                # tcp, udp, icmp, *
       port      = optional(string, "*") # "80", "8080-8090", "*"
       cidr      = optional(string, "*")
       access    = optional(string, "Allow") # Azure only: Allow / Deny

@@ -1,4 +1,7 @@
 locals {
+  # Provider is selected by which of cloud_settings.azure / cloud_settings.ovh is set
+  cloud_provider = var.cloud_settings.ovh != null ? "ovh" : "azure"
+
   # Map T-shirt sizes to actual cloud VM SKUs / Flavors
 
   ## download openrc.sh from users
@@ -22,7 +25,7 @@ locals {
 
   # Resolving the architecture choices from the objects safely
   resolved_node_sku = lookup(
-    local.node_sku_mapping[var.cloud_settings.cloud_provider],
+    local.node_sku_mapping[local.cloud_provider],
     var.node_config.node_size,
     var.node_config.node_size # Fallback if user passes a direct raw SKU instead of a T-shirt size
   )

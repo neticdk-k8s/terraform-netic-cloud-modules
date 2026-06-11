@@ -1,6 +1,6 @@
 module "azure_k8s_cluster" {
   source = "../azure"
-  count  = var.cloud_settings.cloud_provider == "azure" ? 1 : 0
+  count  = var.cloud_settings.azure != null ? 1 : 0
 
   cluster_config = {
     name    = var.cluster_config.cluster_name
@@ -21,19 +21,19 @@ module "azure_k8s_cluster" {
   }
 
   cloud_settings = {
-    resource_group  = var.cloud_settings.project_identifier
+    resource_group  = var.cloud_settings.azure.resource_group
     location        = var.cloud_settings.region
-    dns_prefix      = coalesce(var.cloud_settings.azure_dns_prefix, var.cluster_config.cluster_name)
-    vnet_subnet_id  = var.cloud_settings.network_id
+    dns_prefix      = coalesce(var.cloud_settings.azure.dns_prefix, var.cluster_config.cluster_name)
+    vnet_subnet_id  = var.cloud_settings.azure.subnet_id
     ip_restrictions = var.cloud_settings.ip_restrictions
-    service_cidr    = coalesce(var.cloud_settings.service_cidr, "172.16.0.0/16")
-    dns_service_ip  = coalesce(var.cloud_settings.dns_service_ip, "172.16.0.10")
+    service_cidr    = var.cloud_settings.azure.service_cidr
+    dns_service_ip  = var.cloud_settings.azure.dns_service_ip
   }
 }
 
 module "ovh_k8s_cluster" {
   source = "../ovh"
-  count  = var.cloud_settings.cloud_provider == "ovh" ? 1 : 0
+  count  = var.cloud_settings.ovh != null ? 1 : 0
 
   cluster_config = {
     name    = var.cluster_config.cluster_name
@@ -55,9 +55,9 @@ module "ovh_k8s_cluster" {
   }
 
   cloud_settings = {
-    ovh_project_id     = var.cloud_settings.project_identifier
+    ovh_project_id     = var.cloud_settings.ovh.project_id
     ovh_region         = var.cloud_settings.region
-    private_network_id = var.cloud_settings.network_id
+    private_network_id = var.cloud_settings.ovh.private_network_id
     ip_restrictions    = var.cloud_settings.ip_restrictions
   }
 }

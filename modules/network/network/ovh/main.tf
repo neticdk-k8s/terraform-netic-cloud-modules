@@ -28,10 +28,10 @@ resource "ovh_cloud_project_network_private_subnet" "subnet" {
   service_name = var.ovh_project_id
   network_id   = ovh_cloud_project_network_private.net.id
 
-  region  = each.value.region
-  network = each.value.subnet
-  start   = cidrhost(each.value.subnet, each.value.ip_allocation_start)
-  end     = cidrhost(each.value.subnet, each.value.ip_allocation_stop)
+  region     = each.value.region
+  network    = each.value.subnet
+  start      = cidrhost(each.value.subnet, each.value.ip_allocation_start)
+  end        = cidrhost(each.value.subnet, each.value.ip_allocation_stop)
   dhcp       = each.value.dhcp
   no_gateway = each.value.no_gateway
 }

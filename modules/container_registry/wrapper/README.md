@@ -2,23 +2,24 @@
 
 Deploys a managed container registry to either **OVHcloud** or **Azure** using a shared interface.
 
+The target provider is selected by setting exactly one of `container_registry.ovh` or `container_registry.azure`.
+
 ## Usage
 
 ### OVHcloud
 
 ```hcl
 module "registry" {
-  source         = "./modules/container_registry/wrapper"
-  cloud_provider = "ovh"
+  source = "./modules/container_registry/wrapper"
 
   container_registry = {
     deploy = true
     name   = "my-registry"
-  }
 
-  ovh_config = {
-    project_id = var.ovh_project_id
-    region     = "GRA"
+    ovh = {
+      project_id = var.ovh_project_id
+      region     = "GRA"
+    }
   }
 
   registry_users = [
@@ -31,18 +32,17 @@ module "registry" {
 
 ```hcl
 module "registry" {
-  source         = "./modules/container_registry/wrapper"
-  cloud_provider = "azure"
+  source = "./modules/container_registry/wrapper"
 
   container_registry = {
     deploy = true
-    name   = "myregistry"   # globally unique
-  }
+    name   = "myregistry" # globally unique
 
-  azure_config = {
-    location       = "westeurope"
-    resource_group = "my-rg"
-    sku            = "Premium"
+    azure = {
+      location       = "westeurope"
+      resource_group = "my-rg"
+      sku            = "Premium"
+    }
   }
 
   ip_restrictions = [
@@ -55,21 +55,21 @@ module "registry" {
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `cloud_provider` | `string` | yes | `"ovh"` or `"azure"` |
-| `container_registry` | `object` | yes | `{ deploy, name }` |
+| `container_registry` | `object` | yes | `{ deploy, name, ovh?, azure? }` — set exactly one of `ovh` / `azure` |
+| `container_registry.ovh` | `object` | if OVH | `{ project_id, region }` |
+| `container_registry.azure` | `object` | if Azure | `{ location, resource_group, sku? }` |
 | `registry_users` | `list(object)` | no | `[{ login, email }]` |
 | `ip_restrictions` | `list(object)` | no | `[{ ip_block, description }]` |
-| `ovh_config` | `object` | if OVH | `{ project_id, region }` |
-| `azure_config` | `object` | if Azure | `{ location, resource_group, sku? }` |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
 | `registry_url` | URL / login server of the registry |
+| `registry_id` | ID of the registry resource |
 | `user_passwords` | Map of usernames → passwords *(sensitive)* |
 
 ## Notes
 
-- Azure IP restrictions require `sku = "Premium"` in `azure_config`.
+- Azure IP restrictions require `sku = "Premium"` in `container_registry.azure`.
 - OVHcloud does not support IAM and local users simultaneously — this wrapper uses local users.

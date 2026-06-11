@@ -1,38 +1,28 @@
-variable "cloud_provider" {
-  type        = string
-  description = "Cloud provider: 'ovh' or 'azure'"
+variable "storage" {
+  type = object({
+    name = string
+
+    ovh = optional(object({
+      project_id       = string
+      region           = optional(string, "GRA")
+      versioning       = optional(string, "enabled")
+      encryption_sse   = optional(string, "AES256")
+      object_lock_days = optional(number, 0)
+    }), null)
+
+    azure = optional(object({
+      resource_group   = string
+      location         = string
+      replication_type = optional(string, "LRS")
+      versioning       = optional(bool, true)
+      retention_days   = optional(number, 7)
+      container_name   = optional(string, "data")
+    }), null)
+  })
+  description = "Object storage configuration. Set exactly one of storage.ovh or storage.azure."
+
   validation {
-    condition     = contains(["ovh", "azure"], var.cloud_provider)
-    error_message = "cloud_provider must be 'ovh' or 'azure'."
+    condition     = (var.storage.ovh != null) != (var.storage.azure != null)
+    error_message = "Exactly one of storage.ovh or storage.azure must be set."
   }
-}
-
-variable "name" {
-  description = "Name of the object storage resource"
-  type        = string
-}
-
-variable "ovh" {
-  description = "OVH object storage config. Required when cloud_provider = 'ovh'."
-  type = object({
-    project_id       = string
-    region           = optional(string, "GRA")
-    versioning       = optional(string, "enabled")
-    encryption_sse   = optional(string, "AES256")
-    object_lock_days = optional(number, 0)
-  })
-  default = null
-}
-
-variable "azure" {
-  description = "Azure object storage config. Required when cloud_provider = 'azure'."
-  type = object({
-    resource_group   = string
-    location         = string
-    replication_type = optional(string, "LRS")
-    versioning       = optional(bool, true)
-    retention_days   = optional(number, 7)
-    container_name   = optional(string, "data")
-  })
-  default = null
 }

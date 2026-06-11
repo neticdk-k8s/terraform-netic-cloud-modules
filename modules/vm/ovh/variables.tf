@@ -5,21 +5,21 @@ variable "ovh_project_id" {
 
 variable "vm" {
   type = object({
-    name            = string
-    size            = string
-    location        = string
-    image_name      = string
-    os_type         = optional(string, "Linux")
+    name             = string
+    size             = string
+    location         = string
+    image_name       = string
+    os_type          = optional(string, "Linux")
     resource_group   = string
     create_public_ip = optional(bool, false)
     ssh_public_key   = optional(string, null)
-    admin_pass      = optional(string, null)
-    network_names   = optional(list(string), [])
-    port_ids        = optional(list(string), [])
-    power_state     = optional(string, "active")
-    user_data       = optional(string, null)
-    security_groups = optional(list(string), ["default"])
-    tags            = optional(map(string), {})
+    admin_pass       = optional(string, null)
+    network_names    = optional(list(string), [])
+    port_ids         = optional(list(string), [])
+    power_state      = optional(string, "active")
+    user_data        = optional(string, null)
+    security_groups  = optional(list(string), ["default"])
+    tags             = optional(map(string), {})
   })
 
   validation {

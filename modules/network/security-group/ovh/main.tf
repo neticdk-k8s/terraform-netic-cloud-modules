@@ -8,8 +8,8 @@ locals {
       ethertype = r.ethertype
       cidr      = r.cidr
       # Parse port: "*" → null, "80" → [80,80], "8080-8090" → [8080,8090]
-      port_min  = r.port == "*" ? null : tonumber(split("-", r.port)[0])
-      port_max  = r.port == "*" ? null : tonumber(split("-", r.port)[length(split("-", r.port)) - 1])
+      port_min = r.port == "*" ? null : tonumber(split("-", r.port)[0])
+      port_max = r.port == "*" ? null : tonumber(split("-", r.port)[length(split("-", r.port)) - 1])
     }
   ]
 }

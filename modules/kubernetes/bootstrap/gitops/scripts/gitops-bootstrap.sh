@@ -2,6 +2,8 @@
 
 set -eo pipefail
 
+log() { echo "[$(date '+%H:%M:%S')] $*"; }
+
 # Unik suffix per kørsel så parallelle kald ikke kolliderer på temp-filer
 _run_id="$$-$(date +%s)"
 
@@ -9,33 +11,39 @@ export KUBECONFIG="$(pwd)/kvm-kubeconfig-${_run_id}.tmp"
 echo "$KUBECONFIG_RAW" > "$KUBECONFIG"
 chmod 600 "$KUBECONFIG"
 
-checkout_gotk="$(pwd)/gotk-bootstrap-k8s-${_run_id}"
-checkout_config="$(pwd)/kubernetes-config-${_run_id}"
+# $1 = cluster_repo, $2 = bootstrap_path, $3 = gotk_repo, $4 = gotk_path, $5 = git_ssh_port
+checkout_gotk="$(pwd)/gotk-bootstrap-${_run_id}"
+checkout_config="$(pwd)/cluster-config-${_run_id}"
 known_hosts_tmp="/tmp/known_hosts-${_run_id}"
 keyscan_pod="ssh-keyscan-${_run_id}"
+ssh_port="${5:-7999}"
 
-trap 'rm -f "$KUBECONFIG" "$known_hosts_tmp"; rm -rf "$checkout_gotk" "$checkout_config"; kubectl delete pod "$keyscan_pod" --ignore-not-found=true 2>/dev/null || true' EXIT
+log "Args: cluster_repo=$1  bootstrap_path=$2  gotk_repo=$3  gotk_path=$4  ssh_port=${ssh_port}"
+
+# Pod-oprydning skal ske før kubeconfig slettes — ellers har kubectl ingen adgang
+trap 'kubectl delete pod "$keyscan_pod" --ignore-not-found=true 2>/dev/null || true; rm -f "$KUBECONFIG" "$known_hosts_tmp"; rm -rf "$checkout_gotk" "$checkout_config"' EXIT
 
 gitops_username=$(echo "${netic_username}" | jq -Rr @uri)
 gitops_token=$(echo "${netic_password}" | jq -Rr @uri)
 
 # --- Apply Flux / gotk components ---
-git clone --depth 1 "https://${gitops_username}:${gitops_token}@git.netic.dk/scm/pd/gotk-bootstrap-k8s.git" "${checkout_gotk}"
-pushd "${checkout_gotk}/gotk"
-{
-  echo "=== GOTK DEBUG $(date) ==="
-  echo "perl test: $(echo '${foo:=bar}' | perl -pe 's/\$\{(\w+)(?::=([^}]*))?\}/$ENV{$1} \/\/ $2 \/\/ ""/ge')"
-  perl -pe 's/\$\{(\w+)(?::=([^}]*))?\}/$ENV{$1} \/\/ $2 \/\/ ""/ge' gotk-components.yaml > /tmp/gotk-substituted.yaml
-  echo "memory linje: $(grep 'source_controller_mem\|memory:' /tmp/gotk-substituted.yaml | head -3)"
-} > /tmp/gotk-debug.log 2>&1
-kubectl apply --server-side --force-conflicts -f /tmp/gotk-substituted.yaml
+log "Cloning gotk repo: $3"
+git clone --depth 1 "https://${gitops_username}:${gitops_token}@$3" "${checkout_gotk}"
+log "Clone OK — entering ${checkout_gotk}/$4"
+
+pushd "${checkout_gotk}/$4"
+log "Applying gotk-components.yaml"
+# Substituer ${var:=default}-placeholders med env-vars (flux envsubst-syntaks)
+perl -pe 's/\$\{(\w+)(?::=([^}]*))?\}/$ENV{$1} \/\/ $2 \/\/ ""/ge' gotk-components.yaml | \
+  kubectl apply --server-side --force-conflicts -f -
+log "gotk-components applied"
 popd
 
 # --- Hent known_hosts fra inde i clusteret og patch secreten ---
 # Køres inde i clusteret så scriptet ikke er afhængig af netværksadgang til git-serveren
 if kubectl get secret kubernetes-config-git-auth -n netic-gitops-system &>/dev/null; then
+  log "Patching kubernetes-config-git-auth known_hosts"
   git_host=$(echo "$1" | cut -d'/' -f1)
-  ssh_port="${3:-7999}"
 
   kubectl run "${keyscan_pod}" \
     --image=alpine \
@@ -44,7 +52,6 @@ if kubectl get secret kubernetes-config-git-auth -n netic-gitops-system &>/dev/n
 
   kubectl wait pod "${keyscan_pod}" --for=jsonpath='{.status.phase}'=Succeeded --timeout=60s
 
-  # Transformer output til korrekt known_hosts format: [host]:port key-type base64
   kubectl logs "${keyscan_pod}" | grep -v '^#' | \
     sed "s/^${git_host} /[${git_host}]:${ssh_port} /" > "${known_hosts_tmp}"
 
@@ -55,11 +62,25 @@ if kubectl get secret kubernetes-config-git-auth -n netic-gitops-system &>/dev/n
     -n netic-gitops-system \
     --type=merge \
     -p "{\"data\":{\"known_hosts\":\"${known_hosts_b64}\"}}"
+  log "known_hosts patched"
 fi
 
 # --- Bootstrap the cluster GitOps repo ---
+log "Cloning cluster config repo: $1"
 git clone --depth 1 "https://${gitops_username}:${gitops_token}@$1" "${checkout_config}"
+log "Clone OK — entering ${checkout_config}/$2"
 
 pushd "${checkout_config}/$2"
-kubectl kustomize . | perl -pe 's/\$\{(\w+)(?::=([^}]*))?\}/$ENV{$1} \/\/ $2 \/\/ ""/ge' | kubectl apply --server-side --force-conflicts -f -
+
+manifest="$(kubectl kustomize .)"
+if [[ -z "$manifest" ]]; then
+  log "ERROR: kubectl kustomize produced no output in $(pwd)"
+  log "Directory contents:"
+  ls -la
+  exit 1
+fi
+
+log "Kustomize OK — $(echo "$manifest" | grep -c '^kind:') resources fundet"
+echo "$manifest" | perl -pe 's/\$\{(\w+)(?::=([^}]*))?\}/$ENV{$1} \/\/ $2 \/\/ ""/ge' | kubectl apply --server-side --force-conflicts -f -
+log "Cluster bootstrap applied"
 popd
