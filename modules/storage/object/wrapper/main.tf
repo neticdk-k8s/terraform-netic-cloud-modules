@@ -1,24 +1,28 @@
+locals {
+  is_ovh = var.storage.ovh != null
+}
+
 module "ovh" {
-  count  = var.cloud_provider == "ovh" ? 1 : 0
+  count  = local.is_ovh ? 1 : 0
   source = "../ovh"
 
-  ovh_project_id   = var.ovh.project_id
-  name             = var.name
-  region           = var.ovh.region
-  versioning       = var.ovh.versioning
-  encryption_sse   = var.ovh.encryption_sse
-  object_lock_days = var.ovh.object_lock_days
+  ovh_project_id   = var.storage.ovh.project_id
+  name             = var.storage.name
+  region           = var.storage.ovh.region
+  versioning       = var.storage.ovh.versioning
+  encryption_sse   = var.storage.ovh.encryption_sse
+  object_lock_days = var.storage.ovh.object_lock_days
 }
 
 module "azure" {
-  count  = var.cloud_provider == "azure" ? 1 : 0
+  count  = local.is_ovh ? 0 : 1
   source = "../azure"
 
-  name             = var.name
-  resource_group   = var.azure.resource_group
-  location         = var.azure.location
-  replication_type = var.azure.replication_type
-  versioning       = var.azure.versioning
-  retention_days   = var.azure.retention_days
-  container_name   = var.azure.container_name
+  name             = var.storage.name
+  resource_group   = var.storage.azure.resource_group
+  location         = var.storage.azure.location
+  replication_type = var.storage.azure.replication_type
+  versioning       = var.storage.azure.versioning
+  retention_days   = var.storage.azure.retention_days
+  container_name   = var.storage.azure.container_name
 }

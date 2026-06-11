@@ -40,9 +40,9 @@ jobs:
         run: mkdir -p ~/.terraform.d/plugin-cache
 
       - name: Validate all modules
-        env:
-          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
         run: |
+          # Sat her i stedet for i env: — tilde udvides ikke i YAML-værdier
+          export TF_PLUGIN_CACHE_DIR="$HOME/.terraform.d/plugin-cache"
           failed=0
           # Find all directories that contain .tf files
           while IFS= read -r dir; do

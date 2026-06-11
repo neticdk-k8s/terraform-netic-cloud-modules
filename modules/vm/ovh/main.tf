@@ -51,7 +51,7 @@ resource "openstack_compute_instance_v2" "VMLinux" {
   security_groups = var.vm.security_groups
   power_state     = var.vm.power_state
   user_data       = var.vm.user_data
-  metadata = merge(var.vm.tags, { resource_group = var.vm.resource_group })
+  metadata        = merge(var.vm.tags, { resource_group = var.vm.resource_group })
 
   dynamic "network" {
     for_each = local.networks
@@ -81,7 +81,7 @@ resource "openstack_compute_instance_v2" "VMWindows" {
   admin_pass      = var.vm.admin_pass
   security_groups = var.vm.security_groups
   power_state     = var.vm.power_state
-  metadata = merge(var.vm.tags, { resource_group = var.vm.resource_group })
+  metadata        = merge(var.vm.tags, { resource_group = var.vm.resource_group })
 
   dynamic "network" {
     for_each = local.networks

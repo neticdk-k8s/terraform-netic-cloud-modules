@@ -31,9 +31,9 @@ locals {
         namespace: netic-gitops-system
       type: Opaque
       data:
-      %{ for field, value in auth ~}
+      %{for field, value in auth~}
         ${field}: ${base64encode(value)}
-      %{ endfor ~}
+      %{endfor~}
     YAML
   }
 }
@@ -70,7 +70,7 @@ resource "null_resource" "netic_git_auth" {
   }
 
   provisioner "local-exec" {
-    command     = "printf '%s' \"$MANIFEST\" | kubectl --kubeconfig=${local_sensitive_file.kubeconfig.filename} apply -f -"
+    command = "printf '%s' \"$MANIFEST\" | kubectl --kubeconfig=${local_sensitive_file.kubeconfig.filename} apply -f -"
     environment = {
       MANIFEST = local.git_auth_manifests[each.key]
     }
@@ -80,8 +80,18 @@ resource "null_resource" "netic_git_auth" {
 }
 
 resource "null_resource" "gitops_bootstrap" {
+  # Re-run bootstrap når repo/path eller git-credentials ændres
+  triggers = {
+    cluster_repo   = var.cluster_repo
+    bootstrap_path = var.bootstrap_path
+    gotk_repo      = var.gotk_repo
+    gotk_path      = var.gotk_path
+    git_ssh_port   = var.git_ssh_port
+    git_auth_hash  = sha256(jsonencode(var.git_auth))
+  }
+
   provisioner "local-exec" {
-    command     = "${path.module}/scripts/gitops-bootstrap.sh ${var.cluster_repo} ${var.bootstrap_path}"
+    command     = "${path.module}/scripts/gitops-bootstrap.sh ${var.cluster_repo} ${var.bootstrap_path} ${var.gotk_repo} ${var.gotk_path} ${var.git_ssh_port}"
     working_dir = path.cwd
 
     environment = {

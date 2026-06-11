@@ -1,12 +1,12 @@
 variable "vm" {
   type = object({
-    name       = string
-    size       = string
-    location   = string
-    resource_group = string
-    admin_pass     = optional(string, null)
-    user_data      = optional(string, null)
-    os_type        = optional(string, "Linux")
+    name             = string
+    size             = string
+    location         = string
+    resource_group   = string
+    admin_pass       = optional(string, null)
+    user_data        = optional(string, null)
+    os_type          = optional(string, "Linux")
     ssh_public_key   = optional(string, null)
     create_public_ip = optional(bool, false)
 
@@ -20,8 +20,8 @@ variable "vm" {
     }), null)
 
     azure = optional(object({
-      subnet_id        = string
-      admin_username   = optional(string, "azureuser")
+      subnet_id      = string
+      admin_username = optional(string, "azureuser")
       image = object({
         publisher = string
         offer     = string
