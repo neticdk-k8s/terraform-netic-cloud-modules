@@ -2,10 +2,6 @@ terraform {
   required_version = ">= 1.3"
 
   required_providers {
-    local = {
-      source  = "hashicorp/local"
-      version = ">= 2.0"
-    }
     null = {
       source  = "hashicorp/null"
       version = ">= 3.0"
@@ -38,26 +34,29 @@ locals {
   }
 }
 
-# Write kubeconfig to a temp file so kubectl can use it directly.
-# Marked sensitive so Terraform never prints the content in logs.
-resource "local_sensitive_file" "kubeconfig" {
-  content         = var.kubeconfig
-  filename        = "${path.cwd}/.kubeconfig-bootstrap"
-  file_permission = "0600"
-}
+# Kubeconfig sendes via env var (KUBECONFIG_RAW) og skrives til en unik
+# mktemp-fil pr. provisioner-kørsel — parallelle modul-instanser (fx service-
+# og utility-cluster i samme root) kan derfor aldrig overskrive hinandens
+# kubeconfig, og der efterlades ingen cluster-credentials på disk.
 
 # Wait until the node pool is actually ready before trying to apply anything.
 # Uses kubectl (works for any provider) instead of `az aks command invoke`.
 resource "null_resource" "wait_for_workers" {
   provisioner "local-exec" {
     command = <<-EOT
+      set -e
+      KUBECONFIG="$(mktemp)"
+      trap 'rm -f "$KUBECONFIG"' EXIT
+      printf '%s' "$KUBECONFIG_RAW" > "$KUBECONFIG"
+      export KUBECONFIG
       sleep 60
-      kubectl --kubeconfig=${local_sensitive_file.kubeconfig.filename} \
-        wait --for=condition=Ready nodes --all --timeout=300s
+      kubectl wait --for=condition=Ready nodes --all --timeout=300s
     EOT
-  }
 
-  depends_on = [local_sensitive_file.kubeconfig]
+    environment = {
+      KUBECONFIG_RAW = var.kubeconfig
+    }
+  }
 }
 
 # Create the netic-gitops-system namespace + git-auth secrets on the cluster.
@@ -69,10 +68,21 @@ resource "null_resource" "netic_git_auth" {
     manifest_hash = sha256(local.git_auth_manifests[each.key])
   }
 
+  # Server-side apply: atomisk upsert, så parallelle instanser ikke racer
+  # om at oprette den fælles namespace (GET→CREATE giver AlreadyExists).
   provisioner "local-exec" {
-    command = "printf '%s' \"$MANIFEST\" | kubectl --kubeconfig=${local_sensitive_file.kubeconfig.filename} apply -f -"
+    command = <<-EOT
+      set -e
+      KUBECONFIG="$(mktemp)"
+      trap 'rm -f "$KUBECONFIG"' EXIT
+      printf '%s' "$KUBECONFIG_RAW" > "$KUBECONFIG"
+      export KUBECONFIG
+      printf '%s' "$MANIFEST" | kubectl apply --server-side --force-conflicts -f -
+    EOT
+
     environment = {
-      MANIFEST = local.git_auth_manifests[each.key]
+      KUBECONFIG_RAW = var.kubeconfig
+      MANIFEST       = local.git_auth_manifests[each.key]
     }
   }
 
