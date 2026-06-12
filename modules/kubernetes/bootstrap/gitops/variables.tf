@@ -32,6 +32,12 @@ variable "git_ssh_port" {
   default     = 7999
 }
 
+variable "keyscan_image" {
+  type        = string
+  description = "Container image used for the in-cluster ssh-keyscan pod. Defaults to ECR Public to avoid Docker Hub anonymous pull rate limits."
+  default     = "public.ecr.aws/docker/library/alpine:3.21"
+}
+
 variable "git_auth" {
   description = "Git credentials provisioned into 'netic-gitops-system' namespace. Expects keys 'netic' (username/password) and 'kubernetes-config' (identity)."
   type = map(object({
