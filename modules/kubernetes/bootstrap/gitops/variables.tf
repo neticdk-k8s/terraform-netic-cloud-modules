@@ -34,8 +34,8 @@ variable "git_ssh_port" {
 
 variable "keyscan_image" {
   type        = string
-  description = "Container image used for the in-cluster ssh-keyscan pod. Defaults to ECR Public to avoid Docker Hub anonymous pull rate limits."
-  default     = "public.ecr.aws/docker/library/alpine:3.21"
+  description = "Container image used for the in-cluster ssh-keyscan pod. Must have ssh-keyscan preinstalled — runtime package install fails on clusters where pod egress to package CDNs is restricted."
+  default     = "ghcr.io/linuxserver/openssh-server:latest"
 }
 
 variable "git_auth" {
