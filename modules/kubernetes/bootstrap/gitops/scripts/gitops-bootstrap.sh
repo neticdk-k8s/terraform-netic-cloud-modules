@@ -70,12 +70,13 @@ if kubectl get secret kubernetes-config-git-auth -n netic-gitops-system &>/dev/n
   log "Patching kubernetes-config-git-auth known_hosts"
   git_host=$(echo "$1" | cut -d'/' -f1)
 
-  # Default-image fra ECR Public — Docker Hub anonym-pull bliver rate-limited
-  # fra delte cloud-egress-IP'er (ses især på OVH)
+  # Image med ssh-keyscan præinstalleret — runtime 'apk add' fejler hvis
+  # pod-nettet ikke kan nå alpines CDN (set på OVH). ghcr.io fremfor Docker Hub
+  # pga. anonyme pull rate limits fra delte cloud-egress-IP'er.
   kubectl run "${keyscan_pod}" \
-    --image="${keyscan_image:-public.ecr.aws/docker/library/alpine:3.21}" \
+    --image="${keyscan_image:-ghcr.io/linuxserver/openssh-server:latest}" \
     --restart=Never \
-    -- sh -c "apk add -q openssh-client && ssh-keyscan -p ${ssh_port} ${git_host}"
+    --command -- sh -c "ssh-keyscan -p ${ssh_port} ${git_host}"
 
   if ! kubectl wait pod "${keyscan_pod}" --for=jsonpath='{.status.phase}'=Succeeded --timeout=180s; then
     log "ERROR: keyscan pod did not succeed within 180s"

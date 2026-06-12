@@ -37,7 +37,7 @@ module "gitops" {
 | `gotk_repo` | `string` | `git.netic.dk/scm/pd/gotk-bootstrap-k8s.git` | Git URL til gotk-bootstrap-repoet (Flux-komponenter) |
 | `gotk_path` | `string` | `gotk` | Sti i `gotk_repo` med `gotk-components.yaml` |
 | `git_ssh_port` | `number` | `7999` | SSH-port på git-serveren, bruges til `ssh-keyscan` ved patch af `known_hosts` (7999 = Bitbucket Server-default) |
-| `keyscan_image` | `string` | `public.ecr.aws/docker/library/alpine:3.21` | Image til den in-cluster ssh-keyscan-pod — ECR Public som default for at undgå Docker Hubs anonyme rate limits |
+| `keyscan_image` | `string` | `ghcr.io/linuxserver/openssh-server:latest` | Image til den in-cluster ssh-keyscan-pod — skal have `ssh-keyscan` præinstalleret (runtime-pakkeinstall fejler på clustre med begrænset pod-egress) |
 
 ## Outputs
 
