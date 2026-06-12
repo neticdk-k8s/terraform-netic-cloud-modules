@@ -97,6 +97,7 @@ resource "null_resource" "gitops_bootstrap" {
     gotk_repo      = var.gotk_repo
     gotk_path      = var.gotk_path
     git_ssh_port   = var.git_ssh_port
+    keyscan_image  = var.keyscan_image
     git_auth_hash  = sha256(jsonencode(var.git_auth))
   }
 
@@ -106,6 +107,7 @@ resource "null_resource" "gitops_bootstrap" {
 
     environment = {
       KUBECONFIG_RAW        = var.kubeconfig
+      keyscan_image         = var.keyscan_image
       netic_username        = var.git_auth["netic"].username
       netic_password        = var.git_auth["netic"].password
       kubernetes_config_key = try(var.git_auth["kubernetes-config"].identity, "")

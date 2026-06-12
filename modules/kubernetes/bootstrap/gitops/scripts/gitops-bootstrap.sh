@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-set -eo pipefail
+# -E: ERR-trap nedarves til funktioner og subshells, ellers fanges fejl dér ikke
+set -Eeo pipefail
 
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
@@ -19,6 +20,30 @@ keyscan_pod="ssh-keyscan-${_run_id}"
 ssh_port="${5:-7999}"
 
 log "Args: cluster_repo=$1  bootstrap_path=$2  gotk_repo=$3  gotk_path=$4  ssh_port=${ssh_port}"
+
+# Dumpes ved enhver fejl, så CI-loggen altid har cluster-kontekst at arbejde med
+dump_diagnostics() {
+  log "===== DIAGNOSTICS (exit code $1, line $2) ====="
+  log "--- Nodes ---"
+  kubectl get nodes -o wide 2>&1 || true
+  # Kun default + netic-gitops-system — undgå at lække navne på alt i clusteret i CI-loggen
+  for ns in default netic-gitops-system; do
+    log "--- Pods ($ns) ---"
+    kubectl get pods -n "$ns" -o wide 2>&1 || true
+    log "--- Events ($ns, seneste 30) ---"
+    kubectl get events -n "$ns" --sort-by=.lastTimestamp 2>&1 | tail -30 || true
+  done
+  if kubectl get pod "$keyscan_pod" &>/dev/null; then
+    log "--- Keyscan pod describe ---"
+    kubectl describe pod "$keyscan_pod" 2>&1 | tail -30 || true
+    log "--- Keyscan pod logs ---"
+    kubectl logs "$keyscan_pod" --tail=30 2>&1 || true
+  fi
+  log "--- netic-gitops-system deployments ---"
+  kubectl get deploy -n netic-gitops-system 2>&1 || true
+  log "===== END DIAGNOSTICS ====="
+}
+trap 'rc=$?; [ $rc -ne 0 ] && dump_diagnostics $rc $LINENO; exit $rc' ERR
 
 # Pod-oprydning skal ske før kubeconfig slettes — ellers har kubectl ingen adgang
 trap 'kubectl delete pod "$keyscan_pod" --ignore-not-found=true 2>/dev/null || true; rm -f "$KUBECONFIG" "$known_hosts_tmp"; rm -rf "$checkout_gotk" "$checkout_config"' EXIT
@@ -45,12 +70,18 @@ if kubectl get secret kubernetes-config-git-auth -n netic-gitops-system &>/dev/n
   log "Patching kubernetes-config-git-auth known_hosts"
   git_host=$(echo "$1" | cut -d'/' -f1)
 
+  # Default-image fra ECR Public — Docker Hub anonym-pull bliver rate-limited
+  # fra delte cloud-egress-IP'er (ses især på OVH)
   kubectl run "${keyscan_pod}" \
-    --image=alpine \
+    --image="${keyscan_image:-public.ecr.aws/docker/library/alpine:3.21}" \
     --restart=Never \
-    -- sh -c "apk add -q openssh-client 2>/dev/null && ssh-keyscan -p ${ssh_port} ${git_host} 2>/dev/null"
+    -- sh -c "apk add -q openssh-client && ssh-keyscan -p ${ssh_port} ${git_host}"
 
-  kubectl wait pod "${keyscan_pod}" --for=jsonpath='{.status.phase}'=Succeeded --timeout=60s
+  if ! kubectl wait pod "${keyscan_pod}" --for=jsonpath='{.status.phase}'=Succeeded --timeout=180s; then
+    log "ERROR: keyscan pod did not succeed within 180s"
+    dump_diagnostics 1 $LINENO
+    exit 1
+  fi
 
   kubectl logs "${keyscan_pod}" | grep -v '^#' | \
     sed "s/^${git_host} /[${git_host}]:${ssh_port} /" > "${known_hosts_tmp}"
