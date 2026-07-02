@@ -37,6 +37,17 @@ resource "openstack_networking_port_v2" "routed" {
       ip_address = each.value.static_ip
     }
   }
+
+  lifecycle {
+    precondition {
+      condition     = each.value.network_id != null
+      error_message = "networks[].network_id must be set when static_ip is set or ip_forwarding is true (a dedicated port has to be created)."
+    }
+    precondition {
+      condition     = each.value.static_ip == null || each.value.subnet_id != null
+      error_message = "networks[].subnet_id must be set when static_ip is set."
+    }
+  }
 }
 
 ######################################

@@ -39,19 +39,11 @@ variable "vm" {
     error_message = "Ext-Net must not be in networks — set create_public_ip = true instead."
   }
 
-  validation {
-    condition = alltrue([
-      for n in var.vm.networks : n.network_id != null
-      if n.static_ip != null || n.ip_forwarding
-    ])
-    error_message = "networks[].network_id must be set when static_ip is set or ip_forwarding is true (a dedicated port has to be created)."
-  }
-
-  validation {
-    condition = alltrue([
-      for n in var.vm.networks : n.subnet_id != null
-      if n.static_ip != null
-    ])
-    error_message = "networks[].subnet_id must be set when static_ip is set."
-  }
+  # network_id/subnet_id are NOT validated here (input variable validation)
+  # because they're often computed values (e.g. a network created in the same
+  # apply). A validation condition that depends on an unknown value forces
+  # OpenTofu/Terraform to treat everything derived from this variable as
+  # unknown too — which breaks the for_each in main.tf. The same checks are
+  # done instead as a lifecycle.precondition on the port resource itself,
+  # which is allowed to reference computed values. See main.tf.
 }
