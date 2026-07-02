@@ -27,7 +27,13 @@ module "vm" {
     size          = "b2-7"
     image_name    = "Ubuntu 24.04"
     create_public_ip = true
-    networks         = [{ name = "my-private-network" }]
+    networks = [{
+      name          = "my-private-network"
+      network_id    = null
+      subnet_id     = null
+      static_ip     = null
+      ip_forwarding = false
+    }]
   }
 }
 
@@ -127,12 +133,14 @@ module "vm" {
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `name` | `string` | — | Network name |
-| `network_id` | `string` | `null` | OpenStack network UUID — required if `static_ip` or `ip_forwarding` is set |
-| `subnet_id` | `string` | `null` | OpenStack subnet UUID — required if `static_ip` is set |
-| `static_ip` | `string` | `null` | Fixed IP to assign on this network |
-| `ip_forwarding` | `bool` | `false` | Disables OpenStack port security (anti-spoofing **and** security groups) on this port — required for firewall/router/VPN VMs that forward traffic not addressed to their own IP |
+| `network_id` | `string` | none — pass `null` explicitly | OpenStack network UUID — required (non-null) if `static_ip` or `ip_forwarding` is set |
+| `subnet_id` | `string` | none — pass `null` explicitly | OpenStack subnet UUID — required (non-null) if `static_ip` is set |
+| `static_ip` | `string` | none — pass `null` explicitly | Fixed IP to assign on this network |
+| `ip_forwarding` | `bool` | none — pass `false` explicitly | Disables OpenStack port security (anti-spoofing **and** security groups) on this port — required for firewall/router/VPN VMs that forward traffic not addressed to their own IP |
 
 If neither `static_ip` nor `ip_forwarding` is set, the network attaches by name with DHCP and normal port security (the previous, simple behaviour). Setting either one creates a dedicated `openstack_networking_port_v2` for that network instead.
+
+**Every field must be present in each `networks[]` entry** (use `null`/`false` for the ones that don't apply). These fields are intentionally *not* declared `optional()` in the type constraint: when `network_id`/`subnet_id` hold a not-yet-known value (e.g. a network created in the same apply), Terraform/OpenTofu's optional-attribute default-filling turns the *entire* object unknown, which breaks `for_each` downstream. Requiring explicit values avoids that.
 
 ## Outputs
 

@@ -19,7 +19,13 @@ module "vm" {
     ovh = {
       project_id = var.ovh_project_id
       image_name = "Ubuntu 24.04"
-      networks   = [{ name = "my-private-network" }]
+      networks = [{
+        name          = "my-private-network"
+        network_id    = null
+        subnet_id     = null
+        static_ip     = null
+        ip_forwarding = false
+      }]
     }
   }
 }
@@ -72,7 +78,12 @@ module "vm" {
     create_public_ip = true
 
     azure = {
-      networks = [{ subnet_id = module.network.subnet_ids["default"] }]
+      networks = [{
+        subnet_id                 = module.network.subnet_ids["default"]
+        static_ip                 = null
+        ip_forwarding             = false
+        network_security_group_id = null
+      }]
       image = {
         publisher = "Canonical"
         offer     = "0001-com-ubuntu-server-jammy"
@@ -103,7 +114,12 @@ module "vm" {
 
     azure = {
       networks = [
-        { subnet_id = module.network.subnet_ids["public"] },
+        {
+          subnet_id                 = module.network.subnet_ids["public"]
+          static_ip                 = null
+          ip_forwarding             = false
+          network_security_group_id = null
+        },
         {
           subnet_id                 = module.network.subnet_ids["private"]
           static_ip                 = "10.0.25.254"
@@ -142,7 +158,7 @@ module "vm" {
 | `vm.ovh.security_groups` | `list(string)` | `["default"]` | Security groups |
 | `vm.ovh.power_state` | `string` | `"active"` | `"active"` eller `"shutoff"` |
 | `vm.azure` | `object` | `null` | Azure-specifik config — sæt for at vælge Azure |
-| `vm.azure.networks` | `list(object)` | — | NIC'er at oprette, i rækkefølge. `networks[0]` er primær NIC og får public IP'en. Sæt `static_ip`/`ip_forwarding`/`network_security_group_id` pr. NIC — se [`vm/azure` README](../azure/README.md) |
+| `vm.azure.networks` | `list(object)` | `[]` | NIC'er at oprette, i rækkefølge (mindst ét påkrævet). `networks[0]` er primær NIC og får public IP'en. Sæt `static_ip`/`ip_forwarding`/`network_security_group_id` pr. NIC — se [`vm/azure` README](../azure/README.md) |
 | `vm.azure.admin_username` | `string` | `"azureuser"` | Admin-brugernavn |
 | `vm.azure.image` | `object` | — | `{ publisher, offer, sku, version? }` |
 

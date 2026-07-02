@@ -11,12 +11,18 @@ variable "vm" {
     create_public_ip = optional(bool, false)
     user_data        = optional(string, null)
     tags             = optional(map(string), {})
-    networks = list(object({
+    # static_ip/ip_forwarding/network_security_group_id are deliberately NOT
+    # optional(): if one holds a not-yet-known value (e.g. a subnet or NSG
+    # created in the same apply), Terraform/OpenTofu has to fully resolve
+    # optional-attribute defaults for the whole object, which turns the
+    # entire object unknown and breaks for_each downstream. Pass all fields
+    # explicitly (null/false where not applicable).
+    networks = optional(list(object({
       subnet_id                 = string
-      static_ip                 = optional(string, null)
-      ip_forwarding             = optional(bool, false)
-      network_security_group_id = optional(string, null)
-    }))
+      static_ip                 = string
+      ip_forwarding             = bool
+      network_security_group_id = string
+    })), [])
     image = object({
       publisher = string
       offer     = string

@@ -27,7 +27,12 @@ module "vm" {
     location         = "westeurope"
     resource_group   = "my-rg"
     create_public_ip = true
-    networks         = [{ subnet_id = module.network.subnet_ids["default"] }]
+    networks = [{
+      subnet_id                 = module.network.subnet_ids["default"]
+      static_ip                 = null
+      ip_forwarding             = false
+      network_security_group_id = null
+    }]
     image = {
       publisher = "Canonical"
       offer     = "0001-com-ubuntu-server-jammy"
@@ -54,7 +59,12 @@ module "vm" {
     os_type        = "Windows"
     admin_username = "adminuser"
     admin_pass     = var.admin_password
-    networks       = [{ subnet_id = module.network.subnet_ids["default"] }]
+    networks = [{
+      subnet_id                 = module.network.subnet_ids["default"]
+      static_ip                 = null
+      ip_forwarding             = false
+      network_security_group_id = null
+    }]
     image = {
       publisher = "MicrosoftWindowsServer"
       offer     = "WindowsServer"
@@ -80,7 +90,12 @@ module "vm" {
     create_public_ip = true
 
     networks = [
-      { subnet_id = module.network.subnet_ids["public"] },   # networks[0]: primary NIC, gets the public IP
+      {
+        subnet_id                 = module.network.subnet_ids["public"] # networks[0]: primary NIC, gets the public IP
+        static_ip                 = null
+        ip_forwarding             = false
+        network_security_group_id = null
+      },
       {
         subnet_id                 = module.network.subnet_ids["private"]
         static_ip                 = "10.0.25.254"
@@ -113,7 +128,7 @@ module "vm" {
 | `admin_username` | `string` | `"azureuser"` | Administrator username |
 | `admin_pass` | `string` | `null` | Administrator password — required for Windows |
 | `ssh_public_key` | `string` | `null` | SSH public key — leave `null` to auto-generate |
-| `networks` | `list(object)` | — | NICs to attach, in order — see below. Must contain at least one entry |
+| `networks` | `list(object)` | `[]` | NICs to attach, in order — see below. Must contain at least one entry |
 | `create_public_ip` | `bool` | `false` | Create a public IP and attach it to `networks[0]` |
 | `user_data` | `string` | `null` | Cloud-init script (Linux only, auto base64-encoded) |
 | `image.publisher` | `string` | — | Image publisher |
@@ -126,9 +141,11 @@ module "vm" {
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `subnet_id` | `string` | — | ID of the subnet to attach this NIC to |
-| `static_ip` | `string` | `null` | Fixed private IP — leave `null` for dynamic allocation |
-| `ip_forwarding` | `bool` | `false` | Enables IP forwarding on this NIC — required for firewall/router/VPN VMs that forward traffic not addressed to their own IP. Does **not** disable NSG enforcement (unlike OVH's `ip_forwarding`) |
-| `network_security_group_id` | `string` | `null` | NSG to associate with this NIC |
+| `static_ip` | `string` | none — pass `null` explicitly | Fixed private IP — pass `null` for dynamic allocation |
+| `ip_forwarding` | `bool` | none — pass `false` explicitly | Enables IP forwarding on this NIC — required for firewall/router/VPN VMs that forward traffic not addressed to their own IP. Does **not** disable NSG enforcement (unlike OVH's `ip_forwarding`) |
+| `network_security_group_id` | `string` | none — pass `null` explicitly | NSG to associate with this NIC |
+
+**Every field must be present in each `networks[]` entry** (use `null`/`false` for the ones that don't apply) — these are intentionally not `optional()` in the type constraint, to avoid a Terraform/OpenTofu limitation where optional-attribute default-filling turns a partially-unknown object (e.g. a `subnet_id` created in the same apply) wholly unknown, breaking `for_each` downstream.
 
 ## Outputs
 

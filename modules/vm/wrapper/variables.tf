@@ -10,15 +10,19 @@ variable "vm" {
     ssh_public_key   = optional(string, null)
     create_public_ip = optional(bool, false)
 
+    # Nested network_id/subnet_id/static_ip/ip_forwarding/network_security_group_id
+    # are deliberately NOT optional() — see modules/vm/ovh/variables.tf for why
+    # (optional-attribute defaulting turns the whole object unknown when one
+    # field holds a not-yet-known value, breaking for_each downstream).
     ovh = optional(object({
       project_id = string
       image_name = string
       networks = optional(list(object({
         name          = string
-        network_id    = optional(string, null)
-        subnet_id     = optional(string, null)
-        static_ip     = optional(string, null)
-        ip_forwarding = optional(bool, false)
+        network_id    = string
+        subnet_id     = string
+        static_ip     = string
+        ip_forwarding = bool
       })), [])
       power_state     = optional(string, "active")
       security_groups = optional(list(string), ["default"])
@@ -26,12 +30,12 @@ variable "vm" {
 
     azure = optional(object({
       admin_username = optional(string, "azureuser")
-      networks = list(object({
+      networks = optional(list(object({
         subnet_id                 = string
-        static_ip                 = optional(string, null)
-        ip_forwarding             = optional(bool, false)
-        network_security_group_id = optional(string, null)
-      }))
+        static_ip                 = string
+        ip_forwarding             = bool
+        network_security_group_id = string
+      })), [])
       image = object({
         publisher = string
         offer     = string
