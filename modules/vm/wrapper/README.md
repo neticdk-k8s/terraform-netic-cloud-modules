@@ -17,15 +17,9 @@ module "vm" {
     resource_group = var.ovh_project_id
 
     ovh = {
-      project_id = var.ovh_project_id
-      image_name = "Ubuntu 24.04"
-      networks = [{
-        name          = "my-private-network"
-        network_id    = null
-        subnet_id     = null
-        static_ip     = null
-        ip_forwarding = false
-      }]
+      project_id    = var.ovh_project_id
+      image_name    = "Ubuntu 24.04"
+      network_names = ["my-private-network"]
     }
   }
 }
@@ -34,11 +28,24 @@ output "ssh_key" { value = module.vm.ssh_private_key; sensitive = true }
 output "ip"      { value = module.vm.public_ip }
 ```
 
-### OVHcloud — firewall/router VM (`ip_forwarding`)
+### OVHcloud — firewall/router VM (disabled anti-spoofing)
 
-A VM that must route/forward traffic not addressed to its own IP (firewall, NAT gateway, VPN endpoint) needs anti-spoofing disabled on that network's port — set `ip_forwarding = true` and give it a `static_ip`. This is OVH's equivalent of Azure's "Enable IP forwarding" NIC setting; see the [`vm/ovh` README](../ovh/README.md#firewall-router-vm-with-anti-spoofing-disabled-ip_forwarding) for the full explanation and caveats.
+A VM that must route/forward traffic not addressed to its own IP (firewall, NAT gateway, VPN endpoint) needs a port with port security disabled. On OVH that port is created separately with [`modules/network/port/ovh`](../../network/port/ovh) and passed in via `port_ids`:
 
 ```hcl
+module "port" {
+  source   = ".../modules/network/port/ovh"
+  for_each = { for n in var.networks : n.name => n }
+
+  port = {
+    name          = "${each.value.name}-opnsense-port"
+    network_id    = module.network[each.key].network_id
+    subnet_id     = module.network[each.key].subnet_ids[each.value.regions[0].region]
+    static_ip     = cidrhost(each.value.regions[0].subnet, 254)
+    ip_forwarding = true
+  }
+}
+
 module "vm" {
   source = "./modules/vm/wrapper"
 
@@ -52,17 +59,13 @@ module "vm" {
     ovh = {
       project_id = var.ovh_project_id
       image_name = "opnsense"
-      networks = [{
-        name          = "my-private-network"
-        network_id    = module.network.network_id
-        subnet_id     = module.network.subnet_ids["GRA11"]
-        static_ip     = "10.0.25.254"
-        ip_forwarding = true
-      }]
+      port_ids   = [for p in module.port : p.id]
     }
   }
 }
 ```
+
+On Azure there is no separate port object — IP forwarding is a NIC property set directly on the VM; see the Azure firewall example below.
 
 ### Azure
 
@@ -78,12 +81,7 @@ module "vm" {
     create_public_ip = true
 
     azure = {
-      networks = [{
-        subnet_id                 = module.network.subnet_ids["default"]
-        static_ip                 = null
-        ip_forwarding             = false
-        network_security_group_id = null
-      }]
+      networks = [{ subnet_id = module.network.subnet_ids["default"] }]
       image = {
         publisher = "Canonical"
         offer     = "0001-com-ubuntu-server-jammy"
@@ -114,12 +112,7 @@ module "vm" {
 
     azure = {
       networks = [
-        {
-          subnet_id                 = module.network.subnet_ids["public"]
-          static_ip                 = null
-          ip_forwarding             = false
-          network_security_group_id = null
-        },
+        { subnet_id = module.network.subnet_ids["public"] },
         {
           subnet_id                 = module.network.subnet_ids["private"]
           static_ip                 = "10.0.25.254"
@@ -154,7 +147,8 @@ module "vm" {
 | `vm.ovh` | `object` | `null` | OVH-specifik config — sæt for at vælge OVH |
 | `vm.ovh.project_id` | `string` | — | OVH project ID |
 | `vm.ovh.image_name` | `string` | — | OVH image-navn (f.eks. `"Ubuntu 24.04"`) |
-| `vm.ovh.networks` | `list(object)` | `[]` | Private netværk at tilknytte. Sæt `static_ip`/`ip_forwarding` for at få en dedikeret port — se [`vm/ovh` README](../ovh/README.md) |
+| `vm.ovh.network_names` | `list(string)` | `[]` | Private netværk at tilknytte ved navn (DHCP, port security til) |
+| `vm.ovh.port_ids` | `list(string)` | `[]` | Præ-oprettede port-UUID'er at tilknytte (fx fra [`network/port/ovh`](../../network/port/ovh)) — bruges til statisk IP og/eller deaktiveret port security |
 | `vm.ovh.security_groups` | `list(string)` | `["default"]` | Security groups |
 | `vm.ovh.power_state` | `string` | `"active"` | `"active"` eller `"shutoff"` |
 | `vm.azure` | `object` | `null` | Azure-specifik config — sæt for at vælge Azure |

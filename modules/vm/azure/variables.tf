@@ -11,17 +11,18 @@ variable "vm" {
     create_public_ip = optional(bool, false)
     user_data        = optional(string, null)
     tags             = optional(map(string), {})
-    # static_ip/ip_forwarding/network_security_group_id are deliberately NOT
-    # optional(): if one holds a not-yet-known value (e.g. a subnet or NSG
-    # created in the same apply), Terraform/OpenTofu has to fully resolve
-    # optional-attribute defaults for the whole object, which turns the
-    # entire object unknown and breaks for_each downstream. Pass all fields
-    # explicitly (null/false where not applicable).
+    # NICs are created with count = length(networks) (see main.tf), which only
+    # depends on the number of entries — not their values — so these fields can
+    # safely be optional() even when subnet_id is computed. The one caveat is
+    # network_security_group_id: it feeds a for_each filter for the NSG
+    # association, so passing a *computed* NSG id can hit the unknown-value
+    # for_each limitation. Leave it null (the default) unless you have a
+    # plan-time-known NSG id, or create the NSG in an earlier apply.
     networks = optional(list(object({
       subnet_id                 = string
-      static_ip                 = string
-      ip_forwarding             = bool
-      network_security_group_id = string
+      static_ip                 = optional(string, null)
+      ip_forwarding             = optional(bool, false)
+      network_security_group_id = optional(string, null)
     })), [])
     image = object({
       publisher = string

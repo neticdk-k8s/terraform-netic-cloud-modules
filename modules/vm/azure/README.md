@@ -27,12 +27,7 @@ module "vm" {
     location         = "westeurope"
     resource_group   = "my-rg"
     create_public_ip = true
-    networks = [{
-      subnet_id                 = module.network.subnet_ids["default"]
-      static_ip                 = null
-      ip_forwarding             = false
-      network_security_group_id = null
-    }]
+    networks         = [{ subnet_id = module.network.subnet_ids["default"] }]
     image = {
       publisher = "Canonical"
       offer     = "0001-com-ubuntu-server-jammy"
@@ -59,12 +54,7 @@ module "vm" {
     os_type        = "Windows"
     admin_username = "adminuser"
     admin_pass     = var.admin_password
-    networks = [{
-      subnet_id                 = module.network.subnet_ids["default"]
-      static_ip                 = null
-      ip_forwarding             = false
-      network_security_group_id = null
-    }]
+    networks       = [{ subnet_id = module.network.subnet_ids["default"] }]
     image = {
       publisher = "MicrosoftWindowsServer"
       offer     = "WindowsServer"
@@ -90,12 +80,8 @@ module "vm" {
     create_public_ip = true
 
     networks = [
-      {
-        subnet_id                 = module.network.subnet_ids["public"] # networks[0]: primary NIC, gets the public IP
-        static_ip                 = null
-        ip_forwarding             = false
-        network_security_group_id = null
-      },
+      # networks[0]: primary NIC, gets the public IP
+      { subnet_id = module.network.subnet_ids["public"] },
       {
         subnet_id                 = module.network.subnet_ids["private"]
         static_ip                 = "10.0.25.254"
@@ -140,12 +126,12 @@ module "vm" {
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `subnet_id` | `string` | — | ID of the subnet to attach this NIC to |
-| `static_ip` | `string` | none — pass `null` explicitly | Fixed private IP — pass `null` for dynamic allocation |
-| `ip_forwarding` | `bool` | none — pass `false` explicitly | Enables IP forwarding on this NIC — required for firewall/router/VPN VMs that forward traffic not addressed to their own IP. Does **not** disable NSG enforcement (unlike OVH's `ip_forwarding`) |
-| `network_security_group_id` | `string` | none — pass `null` explicitly | NSG to associate with this NIC |
+| `subnet_id` | `string` | — | ID of the subnet to attach this NIC to (required) |
+| `static_ip` | `string` | `null` | Fixed private IP — leave unset for dynamic allocation |
+| `ip_forwarding` | `bool` | `false` | Enables IP forwarding on this NIC — required for firewall/router/VPN VMs that forward traffic not addressed to their own IP. Does **not** disable NSG enforcement (unlike OVH's `ip_forwarding`) |
+| `network_security_group_id` | `string` | `null` | NSG to associate with this NIC |
 
-**Every field must be present in each `networks[]` entry** (use `null`/`false` for the ones that don't apply) — these are intentionally not `optional()` in the type constraint, to avoid a Terraform/OpenTofu limitation where optional-attribute default-filling turns a partially-unknown object (e.g. a `subnet_id` created in the same apply) wholly unknown, breaking `for_each` downstream.
+Only `subnet_id` is required; the rest are optional. **Caveat:** `network_security_group_id` feeds a `for_each` filter for the NSG association, so passing a *computed* NSG id (one created in the same apply) can hit Terraform/OpenTofu's unknown-value `for_each` limitation. Leave it unset unless the NSG id is known at plan time, or create the NSG in an earlier apply.
 
 ## Outputs
 

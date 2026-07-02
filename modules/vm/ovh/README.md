@@ -9,7 +9,6 @@ Provisions a virtual machine on OVHcloud via OpenStack. Supports both Linux and 
 | `tls_private_key` | Linux + no `sshkey` supplied | 4096-bit RSA key pair |
 | `openstack_compute_keypair_v2` | Linux + no `sshkey` supplied | Registers the public key with OpenStack |
 | `ovh_cloud_project_ssh_key` | Linux + no `sshkey` supplied | Registers the public key with OVH |
-| `openstack_networking_port_v2` | per network with `static_ip` and/or `ip_forwarding` | Dedicated port for that network attachment |
 | `openstack_compute_instance_v2` | always | The virtual machine (Linux or Windows variant) |
 
 ## Usage
@@ -23,17 +22,11 @@ module "vm" {
   ovh_project_id = var.ovh_project_id
 
   vm = {
-    name          = "my-server"
-    size          = "b2-7"
-    image_name    = "Ubuntu 24.04"
+    name             = "my-server"
+    size             = "b2-7"
+    image_name       = "Ubuntu 24.04"
     create_public_ip = true
-    networks = [{
-      name          = "my-private-network"
-      network_id    = null
-      subnet_id     = null
-      static_ip     = null
-      ip_forwarding = false
-    }]
+    network_names    = ["my-private-network"]
   }
 }
 
@@ -79,11 +72,26 @@ module "vm" {
 }
 ```
 
-### Firewall/router VM with anti-spoofing disabled (`ip_forwarding`)
+### Firewall/router VM with anti-spoofing disabled
 
-A VM that routes or forwards traffic which isn't addressed to its own IP (a firewall, NAT gateway or VPN endpoint like OPNsense) needs a dedicated port with a static IP and OpenStack's port security disabled — otherwise OVH's Neutron anti-spoofing filter silently drops the forwarded packets.
+A VM that routes or forwards traffic which isn't addressed to its own IP (a firewall, NAT gateway or VPN endpoint like OPNsense) needs a port with OpenStack's port security disabled — otherwise OVH's Neutron anti-spoofing filter silently drops the forwarded packets.
+
+That port is **not** created here — create it with [`modules/network/port/ovh`](../../network/port/ovh) (which sets `port_security_enabled = false` via `ip_forwarding = true`) and pass its ID in via `port_ids`:
 
 ```hcl
+module "port" {
+  source   = ".../modules/network/port/ovh"
+  for_each = { for n in var.networks : n.name => n }
+
+  port = {
+    name          = "${each.value.name}-opnsense-port"
+    network_id    = module.network[each.key].network_id
+    subnet_id     = module.network[each.key].subnet_ids[each.value.regions[0].region]
+    static_ip     = cidrhost(each.value.regions[0].subnet, 254)
+    ip_forwarding = true
+  }
+}
+
 module "vm" {
   source = "./modules/vm/ovh"
 
@@ -94,19 +102,10 @@ module "vm" {
     size             = "b2-7"
     image_name       = "opnsense"
     create_public_ip = true
-
-    networks = [{
-      name          = "my-private-network"
-      network_id    = module.network.network_id           # from modules/network/ovh
-      subnet_id     = module.network.subnet_ids["GRA11"]
-      static_ip     = "10.0.25.254"
-      ip_forwarding = true
-    }]
+    port_ids         = [for p in module.port : p.id]
   }
 }
 ```
-
-`ip_forwarding = true` sets `port_security_enabled = false` on that port. **This disables both anti-spoofing and security groups on the port** — there's no way to keep security groups active while allowing spoofed/forwarded traffic in OpenStack. Only set it on the network(s) that actually need to carry forwarded traffic.
 
 ## Inputs
 
@@ -124,23 +123,10 @@ module "vm" {
 | `image_name` | `string` | — | OS image name — if it contains "windows" (case-insensitive) a Windows VM is created |
 | `sshkey` | `string` | `null` | Name of an existing OVH keypair — leave `null` to auto-generate |
 | `admin_pass` | `string` | `null` | Administrator password — **required for Windows VMs** |
-| `networks` | `list(object)` | `[]` | Private networks to attach — see below. `Ext-Net` must not be listed here; use `create_public_ip` instead |
+| `network_names` | `list(string)` | `[]` | Networks to attach by name (DHCP, port security enabled). `Ext-Net` must not be listed here; use `create_public_ip` instead |
+| `port_ids` | `list(string)` | `[]` | Pre-created port UUIDs to attach (e.g. from [`modules/network/port/ovh`](../../network/port/ovh)) — used for static IPs and/or disabled port security |
 | `power_state` | `string` | `"active"` | `"active"` or `"shutoff"` |
 | `user_data` | `string` | `null` | Cloud-init user data script |
-
-### `vm.networks[*]`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `name` | `string` | — | Network name |
-| `network_id` | `string` | none — pass `null` explicitly | OpenStack network UUID — required (non-null) if `static_ip` or `ip_forwarding` is set |
-| `subnet_id` | `string` | none — pass `null` explicitly | OpenStack subnet UUID — required (non-null) if `static_ip` is set |
-| `static_ip` | `string` | none — pass `null` explicitly | Fixed IP to assign on this network |
-| `ip_forwarding` | `bool` | none — pass `false` explicitly | Disables OpenStack port security (anti-spoofing **and** security groups) on this port — required for firewall/router/VPN VMs that forward traffic not addressed to their own IP |
-
-If neither `static_ip` nor `ip_forwarding` is set, the network attaches by name with DHCP and normal port security (the previous, simple behaviour). Setting either one creates a dedicated `openstack_networking_port_v2` for that network instead.
-
-**Every field must be present in each `networks[]` entry** (use `null`/`false` for the ones that don't apply). These fields are intentionally *not* declared `optional()` in the type constraint: when `network_id`/`subnet_id` hold a not-yet-known value (e.g. a network created in the same apply), Terraform/OpenTofu's optional-attribute default-filling turns the *entire* object unknown, which breaks `for_each` downstream. Requiring explicit values avoids that.
 
 ## Outputs
 

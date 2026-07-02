@@ -18,7 +18,8 @@ module "ovh" {
     admin_pass       = var.vm.admin_pass
     resource_group   = var.vm.resource_group
     create_public_ip = var.vm.create_public_ip
-    networks         = try(var.vm.ovh.networks, [])
+    network_names    = try(var.vm.ovh.network_names, [])
+    port_ids         = try(var.vm.ovh.port_ids, [])
     power_state      = try(var.vm.ovh.power_state, "active")
     user_data        = var.vm.user_data
     security_groups  = try(var.vm.ovh.security_groups, ["default"])
