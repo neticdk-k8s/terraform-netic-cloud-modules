@@ -2,13 +2,41 @@ locals {
   is_windows     = lower(var.vm.os_type) == "windows"
   create_ssh_key = var.vm.ssh_public_key == null && !local.is_windows
 
+  # Networks that need a dedicated port: a static IP and/or disabled port
+  # security (ip_forwarding) can only be expressed on an explicit port,
+  # not on a plain name-based network attachment.
+  routed_networks = { for n in var.vm.networks : n.name => n if n.static_ip != null || n.ip_forwarding }
+
+  # Everything else attaches by name (DHCP, port security enabled) as before.
+  simple_network_names = [for n in var.vm.networks : n.name if n.static_ip == null && !n.ip_forwarding]
+
   # Combine networks by name and port-ID into a single list for the dynamic block.
   # create_public_ip prepends Ext-Net (OVH's public internet network)
   networks = concat(
     var.vm.create_public_ip ? [{ name = "Ext-Net", port = null }] : [],
-    [for n in var.vm.network_names : { name = n, port = null }],
-    [for p in var.vm.port_ids : { name = null, port = p }]
+    [for n in local.simple_network_names : { name = n, port = null }],
+    [for k, p in openstack_networking_port_v2.routed : { name = null, port = p.id }]
   )
+}
+
+# Dedicated port per network that requested a static IP and/or ip_forwarding.
+# ip_forwarding = true disables port security entirely (Neutron's anti-spoofing
+# *and* security groups) — required for a VM that routes/forwards traffic that
+# isn't addressed to its own IP (firewalls, NAT/VPN gateways, etc.).
+resource "openstack_networking_port_v2" "routed" {
+  for_each = local.routed_networks
+
+  name                  = "${var.vm.name}-${each.key}-port"
+  network_id            = each.value.network_id
+  port_security_enabled = !each.value.ip_forwarding
+
+  dynamic "fixed_ip" {
+    for_each = each.value.static_ip != null ? [1] : []
+    content {
+      subnet_id  = each.value.subnet_id
+      ip_address = each.value.static_ip
+    }
+  }
 }
 
 ######################################

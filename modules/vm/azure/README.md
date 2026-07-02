@@ -7,8 +7,9 @@ Provisions a Linux or Windows virtual machine on Azure with a network interface,
 | Resource | Condition | Description |
 |----------|-----------|-------------|
 | `tls_private_key` | Linux + no `ssh_public_key` | 4096-bit RSA key |
-| `azurerm_public_ip` | `create_public_ip = true` | Static Standard public IP |
-| `azurerm_network_interface` | always | NIC attached to the given subnet |
+| `azurerm_public_ip` | `create_public_ip = true` | Static Standard public IP, attached to `networks[0]` |
+| `azurerm_network_interface` | one per entry in `networks` | NIC attached to that subnet |
+| `azurerm_network_interface_security_group_association` | per NIC with `network_security_group_id` set | Associates the NIC with an NSG |
 | `azurerm_linux_virtual_machine` | `os_type = "Linux"` | Linux VM |
 | `azurerm_windows_virtual_machine` | `os_type = "Windows"` | Windows VM |
 
@@ -25,8 +26,8 @@ module "vm" {
     size             = "Standard_D2s_v3"
     location         = "westeurope"
     resource_group   = "my-rg"
-    subnet_id        = module.network.subnet_ids["default"]
     create_public_ip = true
+    networks         = [{ subnet_id = module.network.subnet_ids["default"] }]
     image = {
       publisher = "Canonical"
       offer     = "0001-com-ubuntu-server-jammy"
@@ -53,7 +54,7 @@ module "vm" {
     os_type        = "Windows"
     admin_username = "adminuser"
     admin_pass     = var.admin_password
-    subnet_id      = module.network.subnet_ids["default"]
+    networks       = [{ subnet_id = module.network.subnet_ids["default"] }]
     image = {
       publisher = "MicrosoftWindowsServer"
       offer     = "WindowsServer"
@@ -62,6 +63,41 @@ module "vm" {
   }
 }
 ```
+
+### Firewall/router VM with anti-spoofing disabled (`ip_forwarding`)
+
+A VM that routes or forwards traffic which isn't addressed to its own IP (a firewall, NAT gateway or VPN endpoint like OPNsense) needs **IP forwarding** enabled on the NIC(s) that carry that traffic — otherwise Azure's fabric silently drops it, the same way OVH's Neutron anti-spoofing filter does.
+
+```hcl
+module "vm" {
+  source = "./modules/vm/azure"
+
+  vm = {
+    name             = "opnsense-fw"
+    size             = "Standard_D2s_v3"
+    location         = "westeurope"
+    resource_group   = "my-rg"
+    create_public_ip = true
+
+    networks = [
+      { subnet_id = module.network.subnet_ids["public"] },   # networks[0]: primary NIC, gets the public IP
+      {
+        subnet_id                 = module.network.subnet_ids["private"]
+        static_ip                 = "10.0.25.254"
+        ip_forwarding             = true
+        network_security_group_id = module.security_group.id
+      },
+    ]
+    image = {
+      publisher = "..."
+      offer     = "..."
+      sku       = "..."
+    }
+  }
+}
+```
+
+**Unlike OVH**, `ip_forwarding = true` here only tells Azure's fabric to allow the NIC to send/receive traffic for IPs other than its own — it does **not** disable the Network Security Group. NSG rules are enforced independently and must separately permit the forwarded traffic (e.g. allow the VPN remote subnet). Attach the NSG via `network_security_group_id` on the relevant network entry.
 
 ## Inputs
 
@@ -77,21 +113,31 @@ module "vm" {
 | `admin_username` | `string` | `"azureuser"` | Administrator username |
 | `admin_pass` | `string` | `null` | Administrator password — required for Windows |
 | `ssh_public_key` | `string` | `null` | SSH public key — leave `null` to auto-generate |
-| `subnet_id` | `string` | — | ID of the subnet to attach |
-| `create_public_ip` | `bool` | `false` | Create and attach a public IP |
+| `networks` | `list(object)` | — | NICs to attach, in order — see below. Must contain at least one entry |
+| `create_public_ip` | `bool` | `false` | Create a public IP and attach it to `networks[0]` |
 | `user_data` | `string` | `null` | Cloud-init script (Linux only, auto base64-encoded) |
 | `image.publisher` | `string` | — | Image publisher |
 | `image.offer` | `string` | — | Image offer |
 | `image.sku` | `string` | — | Image SKU |
 | `image.version` | `string` | `"latest"` | Image version |
 
+### `vm.networks[*]`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `subnet_id` | `string` | — | ID of the subnet to attach this NIC to |
+| `static_ip` | `string` | `null` | Fixed private IP — leave `null` for dynamic allocation |
+| `ip_forwarding` | `bool` | `false` | Enables IP forwarding on this NIC — required for firewall/router/VPN VMs that forward traffic not addressed to their own IP. Does **not** disable NSG enforcement (unlike OVH's `ip_forwarding`) |
+| `network_security_group_id` | `string` | `null` | NSG to associate with this NIC |
+
 ## Outputs
 
 | Name | Description |
 |------|-------------|
 | `vm_name` | Name of the VM |
-| `vm_ip` | Private IPv4 address |
+| `vm_ip` | Private IPv4 address of the primary NIC (`networks[0]`) |
 | `public_ip` | Public IP (null if `create_public_ip = false`) |
+| `network_interface_ids` | IDs of all NICs, in the same order as `networks` |
 | `ssh_private_key` | Generated PEM key *(sensitive)* — null if `ssh_public_key` was provided |
 
 ## Common image references

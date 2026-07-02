@@ -9,6 +9,7 @@ Provisions a virtual machine on OVHcloud via OpenStack. Supports both Linux and 
 | `tls_private_key` | Linux + no `sshkey` supplied | 4096-bit RSA key pair |
 | `openstack_compute_keypair_v2` | Linux + no `sshkey` supplied | Registers the public key with OpenStack |
 | `ovh_cloud_project_ssh_key` | Linux + no `sshkey` supplied | Registers the public key with OVH |
+| `openstack_networking_port_v2` | per network with `static_ip` and/or `ip_forwarding` | Dedicated port for that network attachment |
 | `openstack_compute_instance_v2` | always | The virtual machine (Linux or Windows variant) |
 
 ## Usage
@@ -25,7 +26,8 @@ module "vm" {
     name          = "my-server"
     size          = "b2-7"
     image_name    = "Ubuntu 24.04"
-    network_names = ["my-private-network", "Ext-Net"]
+    create_public_ip = true
+    networks         = [{ name = "my-private-network" }]
   }
 }
 
@@ -44,11 +46,11 @@ module "vm" {
   ovh_project_id = var.ovh_project_id
 
   vm = {
-    name          = "my-server"
-    size          = "b2-7"
-    image_name    = "Ubuntu 24.04"
-    sshkey        = "my-existing-keypair-name"
-    network_names = ["Ext-Net"]
+    name             = "my-server"
+    size             = "b2-7"
+    image_name       = "Ubuntu 24.04"
+    sshkey           = "my-existing-keypair-name"
+    create_public_ip = true
   }
 }
 ```
@@ -62,14 +64,43 @@ module "vm" {
   ovh_project_id = var.ovh_project_id
 
   vm = {
-    name          = "my-windows-server"
-    size          = "b2-15"
-    image_name    = "Windows Server 2022"
-    admin_pass    = var.admin_password
-    network_names = ["Ext-Net"]
+    name             = "my-windows-server"
+    size             = "b2-15"
+    image_name       = "Windows Server 2022"
+    admin_pass       = var.admin_password
+    create_public_ip = true
   }
 }
 ```
+
+### Firewall/router VM with anti-spoofing disabled (`ip_forwarding`)
+
+A VM that routes or forwards traffic which isn't addressed to its own IP (a firewall, NAT gateway or VPN endpoint like OPNsense) needs a dedicated port with a static IP and OpenStack's port security disabled — otherwise OVH's Neutron anti-spoofing filter silently drops the forwarded packets.
+
+```hcl
+module "vm" {
+  source = "./modules/vm/ovh"
+
+  ovh_project_id = var.ovh_project_id
+
+  vm = {
+    name             = "opnsense-fw"
+    size             = "b2-7"
+    image_name       = "opnsense"
+    create_public_ip = true
+
+    networks = [{
+      name          = "my-private-network"
+      network_id    = module.network.network_id           # from modules/network/ovh
+      subnet_id     = module.network.subnet_ids["GRA11"]
+      static_ip     = "10.0.25.254"
+      ip_forwarding = true
+    }]
+  }
+}
+```
+
+`ip_forwarding = true` sets `port_security_enabled = false` on that port. **This disables both anti-spoofing and security groups on the port** — there's no way to keep security groups active while allowing spoofed/forwarded traffic in OpenStack. Only set it on the network(s) that actually need to carry forwarded traffic.
 
 ## Inputs
 
@@ -87,9 +118,21 @@ module "vm" {
 | `image_name` | `string` | — | OS image name — if it contains "windows" (case-insensitive) a Windows VM is created |
 | `sshkey` | `string` | `null` | Name of an existing OVH keypair — leave `null` to auto-generate |
 | `admin_pass` | `string` | `null` | Administrator password — **required for Windows VMs** |
-| `network_names` | `list(string)` | `[]` | Networks to attach (e.g. `["my-net", "Ext-Net"]`) |
+| `networks` | `list(object)` | `[]` | Private networks to attach — see below. `Ext-Net` must not be listed here; use `create_public_ip` instead |
 | `power_state` | `string` | `"active"` | `"active"` or `"shutoff"` |
 | `user_data` | `string` | `null` | Cloud-init user data script |
+
+### `vm.networks[*]`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | `string` | — | Network name |
+| `network_id` | `string` | `null` | OpenStack network UUID — required if `static_ip` or `ip_forwarding` is set |
+| `subnet_id` | `string` | `null` | OpenStack subnet UUID — required if `static_ip` is set |
+| `static_ip` | `string` | `null` | Fixed IP to assign on this network |
+| `ip_forwarding` | `bool` | `false` | Disables OpenStack port security (anti-spoofing **and** security groups) on this port — required for firewall/router/VPN VMs that forward traffic not addressed to their own IP |
+
+If neither `static_ip` nor `ip_forwarding` is set, the network attaches by name with DHCP and normal port security (the previous, simple behaviour). Setting either one creates a dedicated `openstack_networking_port_v2` for that network instead.
 
 ## Outputs
 

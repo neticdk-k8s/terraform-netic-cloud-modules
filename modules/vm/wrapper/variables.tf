@@ -11,17 +11,27 @@ variable "vm" {
     create_public_ip = optional(bool, false)
 
     ovh = optional(object({
-      project_id      = string
-      image_name      = string
-      network_names   = optional(list(string), [])
-      port_ids        = optional(list(string), [])
+      project_id = string
+      image_name = string
+      networks = optional(list(object({
+        name          = string
+        network_id    = optional(string, null)
+        subnet_id     = optional(string, null)
+        static_ip     = optional(string, null)
+        ip_forwarding = optional(bool, false)
+      })), [])
       power_state     = optional(string, "active")
       security_groups = optional(list(string), ["default"])
     }), null)
 
     azure = optional(object({
-      subnet_id      = string
       admin_username = optional(string, "azureuser")
+      networks = list(object({
+        subnet_id                 = string
+        static_ip                 = optional(string, null)
+        ip_forwarding             = optional(bool, false)
+        network_security_group_id = optional(string, null)
+      }))
       image = object({
         publisher = string
         offer     = string

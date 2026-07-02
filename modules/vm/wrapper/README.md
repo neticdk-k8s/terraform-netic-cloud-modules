@@ -17,15 +17,45 @@ module "vm" {
     resource_group = var.ovh_project_id
 
     ovh = {
-      project_id    = var.ovh_project_id
-      image_name    = "Ubuntu 24.04"
-      network_names = ["my-private-network", "Ext-Net"]
+      project_id = var.ovh_project_id
+      image_name = "Ubuntu 24.04"
+      networks   = [{ name = "my-private-network" }]
     }
   }
 }
 
 output "ssh_key" { value = module.vm.ssh_private_key; sensitive = true }
 output "ip"      { value = module.vm.public_ip }
+```
+
+### OVHcloud — firewall/router VM (`ip_forwarding`)
+
+A VM that must route/forward traffic not addressed to its own IP (firewall, NAT gateway, VPN endpoint) needs anti-spoofing disabled on that network's port — set `ip_forwarding = true` and give it a `static_ip`. This is OVH's equivalent of Azure's "Enable IP forwarding" NIC setting; see the [`vm/ovh` README](../ovh/README.md#firewall-router-vm-with-anti-spoofing-disabled-ip_forwarding) for the full explanation and caveats.
+
+```hcl
+module "vm" {
+  source = "./modules/vm/wrapper"
+
+  vm = {
+    name             = "opnsense-fw"
+    size             = "b2-7"
+    location         = "GRA11"
+    resource_group   = var.ovh_project_id
+    create_public_ip = true
+
+    ovh = {
+      project_id = var.ovh_project_id
+      image_name = "opnsense"
+      networks = [{
+        name          = "my-private-network"
+        network_id    = module.network.network_id
+        subnet_id     = module.network.subnet_ids["GRA11"]
+        static_ip     = "10.0.25.254"
+        ip_forwarding = true
+      }]
+    }
+  }
+}
 ```
 
 ### Azure
@@ -42,7 +72,7 @@ module "vm" {
     create_public_ip = true
 
     azure = {
-      subnet_id = module.network.subnet_ids["default"]
+      networks = [{ subnet_id = module.network.subnet_ids["default"] }]
       image = {
         publisher = "Canonical"
         offer     = "0001-com-ubuntu-server-jammy"
@@ -54,6 +84,41 @@ module "vm" {
 
 output "ssh_key" { value = module.vm.ssh_private_key; sensitive = true }
 output "ip"      { value = module.vm.public_ip }
+```
+
+### Azure — firewall/router VM (`ip_forwarding`)
+
+Samme koncept som på OVH, men Azure kalder det "IP forwarding", og det slår **kun** forwarding til på NIC'en — Network Security Groups håndhæves stadig uafhængigt og skal selv tillade trafikken. Se [`vm/azure` README](../azure/README.md#firewall-router-vm-with-anti-spoofing-disabled-ip_forwarding).
+
+```hcl
+module "vm" {
+  source = "./modules/vm/wrapper"
+
+  vm = {
+    name             = "opnsense-fw"
+    size             = "Standard_D2s_v3"
+    location         = "westeurope"
+    resource_group   = "my-rg"
+    create_public_ip = true
+
+    azure = {
+      networks = [
+        { subnet_id = module.network.subnet_ids["public"] },
+        {
+          subnet_id                 = module.network.subnet_ids["private"]
+          static_ip                 = "10.0.25.254"
+          ip_forwarding             = true
+          network_security_group_id = module.security_group.id
+        },
+      ]
+      image = {
+        publisher = "..."
+        offer     = "..."
+        sku       = "..."
+      }
+    }
+  }
+}
 ```
 
 ## Inputs
@@ -73,11 +138,11 @@ output "ip"      { value = module.vm.public_ip }
 | `vm.ovh` | `object` | `null` | OVH-specifik config — sæt for at vælge OVH |
 | `vm.ovh.project_id` | `string` | — | OVH project ID |
 | `vm.ovh.image_name` | `string` | — | OVH image-navn (f.eks. `"Ubuntu 24.04"`) |
-| `vm.ovh.network_names` | `list(string)` | `[]` | Navne på private netværk at tilknytte |
+| `vm.ovh.networks` | `list(object)` | `[]` | Private netværk at tilknytte. Sæt `static_ip`/`ip_forwarding` for at få en dedikeret port — se [`vm/ovh` README](../ovh/README.md) |
 | `vm.ovh.security_groups` | `list(string)` | `["default"]` | Security groups |
 | `vm.ovh.power_state` | `string` | `"active"` | `"active"` eller `"shutoff"` |
 | `vm.azure` | `object` | `null` | Azure-specifik config — sæt for at vælge Azure |
-| `vm.azure.subnet_id` | `string` | — | Subnet ID til NIC'et |
+| `vm.azure.networks` | `list(object)` | — | NIC'er at oprette, i rækkefølge. `networks[0]` er primær NIC og får public IP'en. Sæt `static_ip`/`ip_forwarding`/`network_security_group_id` pr. NIC — se [`vm/azure` README](../azure/README.md) |
 | `vm.azure.admin_username` | `string` | `"azureuser"` | Admin-brugernavn |
 | `vm.azure.image` | `object` | — | `{ publisher, offer, sku, version? }` |
 

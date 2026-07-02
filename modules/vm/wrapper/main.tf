@@ -18,8 +18,7 @@ module "ovh" {
     admin_pass       = var.vm.admin_pass
     resource_group   = var.vm.resource_group
     create_public_ip = var.vm.create_public_ip
-    network_names    = try(var.vm.ovh.network_names, [])
-    port_ids         = try(var.vm.ovh.port_ids, [])
+    networks         = try(var.vm.ovh.networks, [])
     power_state      = try(var.vm.ovh.power_state, "active")
     user_data        = var.vm.user_data
     security_groups  = try(var.vm.ovh.security_groups, ["default"])
@@ -40,7 +39,7 @@ module "azure" {
     admin_username   = try(var.vm.azure.admin_username, "azureuser")
     admin_pass       = var.vm.admin_pass
     ssh_public_key   = var.vm.ssh_public_key
-    subnet_id        = try(var.vm.azure.subnet_id, "")
+    networks         = try(var.vm.azure.networks, [])
     create_public_ip = var.vm.create_public_ip
     user_data        = var.vm.user_data
     image            = try(var.vm.azure.image, { publisher = "", offer = "", sku = "", version = "latest" })
