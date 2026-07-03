@@ -11,6 +11,24 @@ variable "vm" {
     create_public_ip = optional(bool, false)
     user_data        = optional(string, null)
     tags             = optional(map(string), {})
+    zone             = optional(string, null) # availability zone ("1"/"2"/"3"), null = no zone
+    boot_diagnostics = optional(bool, false)  # managed-storage boot diagnostics
+
+    os_disk = optional(object({
+      size_gb              = optional(number, null) # null = image default
+      storage_account_type = optional(string, "Premium_LRS")
+      caching              = optional(string, "ReadWrite")
+    }), {})
+
+    # Pre-created managed disks (modules/storage/disk/azure) to attach.
+    # The disk itself lives outside this module so it survives VM rebuilds.
+    # lun is a plan-time literal and is used as the for_each key — safe even
+    # though disk_id is computed.
+    data_disks = optional(list(object({
+      disk_id = string
+      lun     = number
+      caching = optional(string, "ReadWrite")
+    })), [])
     # NICs are created with count = length(networks) (see main.tf), which only
     # depends on the number of entries — not their values — so these fields can
     # safely be optional() even when subnet_id is computed. The one caveat is

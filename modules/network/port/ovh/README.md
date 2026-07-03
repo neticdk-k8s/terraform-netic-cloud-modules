@@ -73,6 +73,7 @@ module "opnsense" {
 |------|-------------|
 | `id` | Port UUID — pass to a VM via `vm.ovh.port_ids` |
 | `ip_address` | The first fixed IP assigned to the port (null if none) |
+| `mac_address` | MAC address of the port — match it against the guest's interfaces to verify vtnetN ordering |
 
 ## Notes
 

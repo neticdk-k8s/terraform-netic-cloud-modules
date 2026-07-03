@@ -10,7 +10,7 @@ output "storage_name" {
 
 output "storage_region" {
   description = "Region of the object storage bucket"
-  value       = var.region
+  value       = var.storage.region
 }
 
 output "connection_string" {

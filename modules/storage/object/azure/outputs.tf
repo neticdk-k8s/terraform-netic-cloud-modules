@@ -10,7 +10,7 @@ output "storage_name" {
 
 output "storage_region" {
   description = "Region of the storage account"
-  value       = var.location
+  value       = var.storage.location
 }
 
 output "connection_string" {

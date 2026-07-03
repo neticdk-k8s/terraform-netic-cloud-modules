@@ -63,6 +63,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   resource_group_name = var.vm.resource_group
   size                = var.vm.size
   admin_username      = var.vm.admin_username
+  zone                = var.vm.zone
 
   tags                  = var.vm.tags
   network_interface_ids = azurerm_network_interface.nic[*].id
@@ -73,8 +74,14 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
 
   os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Premium_LRS"
+    caching              = var.vm.os_disk.caching
+    storage_account_type = var.vm.os_disk.storage_account_type
+    disk_size_gb         = var.vm.os_disk.size_gb
+  }
+
+  dynamic "boot_diagnostics" {
+    for_each = var.vm.boot_diagnostics ? [1] : []
+    content {} # empty block = managed storage account
   }
 
   source_image_reference {
@@ -100,13 +107,20 @@ resource "azurerm_windows_virtual_machine" "vm" {
   size                = var.vm.size
   admin_username      = var.vm.admin_username
   admin_password      = var.vm.admin_pass
+  zone                = var.vm.zone
   tags                = var.vm.tags
 
   network_interface_ids = azurerm_network_interface.nic[*].id
 
   os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Premium_LRS"
+    caching              = var.vm.os_disk.caching
+    storage_account_type = var.vm.os_disk.storage_account_type
+    disk_size_gb         = var.vm.os_disk.size_gb
+  }
+
+  dynamic "boot_diagnostics" {
+    for_each = var.vm.boot_diagnostics ? [1] : []
+    content {} # empty block = managed storage account
   }
 
   source_image_reference {
@@ -125,4 +139,19 @@ resource "azurerm_windows_virtual_machine" "vm" {
       error_message = "admin_pass must be set for Windows VMs."
     }
   }
+}
+
+######################################
+###          Data disks            ###
+######################################
+
+# Attach pre-created managed disks (modules/storage/disk/azure). Keyed on lun
+# (a plan-time literal), so computed disk IDs never become for_each keys.
+resource "azurerm_virtual_machine_data_disk_attachment" "data" {
+  for_each = { for d in var.vm.data_disks : d.lun => d }
+
+  managed_disk_id    = each.value.disk_id
+  virtual_machine_id = local.is_windows ? azurerm_windows_virtual_machine.vm[0].id : azurerm_linux_virtual_machine.vm[0].id
+  lun                = each.value.lun
+  caching            = each.value.caching
 }

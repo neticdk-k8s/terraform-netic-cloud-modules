@@ -10,6 +10,7 @@ Provisions a Linux or Windows virtual machine on Azure with a network interface,
 | `azurerm_public_ip` | `create_public_ip = true` | Static Standard public IP, attached to `networks[0]` |
 | `azurerm_network_interface` | one per entry in `networks` | NIC attached to that subnet |
 | `azurerm_network_interface_security_group_association` | per NIC with `network_security_group_id` set | Associates the NIC with an NSG |
+| `azurerm_virtual_machine_data_disk_attachment` | per entry in `data_disks` | Attaches pre-created managed disks |
 | `azurerm_linux_virtual_machine` | `os_type = "Linux"` | Linux VM |
 | `azurerm_windows_virtual_machine` | `os_type = "Windows"` | Windows VM |
 
@@ -116,6 +117,12 @@ module "vm" {
 | `ssh_public_key` | `string` | `null` | SSH public key — leave `null` to auto-generate |
 | `networks` | `list(object)` | `[]` | NICs to attach, in order — see below. Must contain at least one entry |
 | `create_public_ip` | `bool` | `false` | Create a public IP and attach it to `networks[0]` |
+| `zone` | `string` | `null` | Availability zone (`"1"`/`"2"`/`"3"`) — also applied to data disks |
+| `boot_diagnostics` | `bool` | `false` | Enable managed-storage boot diagnostics |
+| `os_disk.size_gb` | `number` | `null` (image default) | OS disk size |
+| `os_disk.storage_account_type` | `string` | `"Premium_LRS"` | OS disk type |
+| `os_disk.caching` | `string` | `"ReadWrite"` | OS disk caching |
+| `data_disks` | `list(object)` | `[]` | Pre-created managed disks to attach: `{ disk_id, lun, caching? }` — create the disk with [`modules/storage/disk/azure`](../../storage/disk/azure) so it survives VM rebuilds |
 | `user_data` | `string` | `null` | Cloud-init script (Linux only, auto base64-encoded) |
 | `image.publisher` | `string` | — | Image publisher |
 | `image.offer` | `string` | — | Image offer |
@@ -154,7 +161,7 @@ Only `subnet_id` is required; the rest are optional. **Caveat:** `network_securi
 
 ## Notes
 
-- **OS disk** is always `Premium_LRS` with `ReadWrite` caching. Adjust in the module if needed.
+- **OS disk** defaults to `Premium_LRS` with `ReadWrite` caching — override via `os_disk`.
 - **`source_image_reference` changes are ignored** after creation to prevent accidental VM replacement on minor image updates.
 - **`user_data`** is automatically base64-encoded before passing to Azure. Pass the raw cloud-init string.
 - **`ssh_private_key` output** — store it securely; it is in Terraform state.

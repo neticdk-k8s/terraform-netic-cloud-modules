@@ -1,6 +1,7 @@
 variable "security_group" {
   type = object({
     name = string
+    tags = optional(map(string), {})
     rules = optional(list(object({
       name      = string
       direction = string                # ingress / egress

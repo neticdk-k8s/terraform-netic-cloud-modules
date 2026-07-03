@@ -8,9 +8,11 @@ Opretter en Azure Storage Account (StorageV2, Standard) med en blob-container, v
 module "storage" {
   source = "./modules/storage/object/azure"
 
-  name           = "mystorageaccount"
-  resource_group = "my-rg"
-  location       = "westeurope"
+  storage = {
+    name           = "mystorageaccount"
+    resource_group = "my-rg"
+    location       = "westeurope"
+  }
 }
 
 output "connection_string" {
@@ -23,13 +25,14 @@ output "connection_string" {
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `name` | `string` | — | Navn på storage account (3-24 tegn, lowercase alphanumerisk, globalt unikt) |
-| `resource_group` | `string` | — | Azure resource group-navn |
-| `location` | `string` | — | Azure-region (f.eks. `"westeurope"`) |
-| `replication_type` | `string` | `"LRS"` | `"LRS"`, `"GRS"`, `"ZRS"` etc. |
-| `versioning` | `bool` | `true` | Aktiver blob-versionering |
-| `retention_days` | `number` | `7` | Soft-delete retention i dage (0 = deaktiveret) |
-| `container_name` | `string` | `"data"` | Navn på blob-containeren |
+| `storage.name` | `string` | — | Navn på storage account (3-24 tegn, lowercase alphanumerisk, globalt unikt) |
+| `storage.resource_group` | `string` | — | Azure resource group-navn |
+| `storage.location` | `string` | — | Azure-region (f.eks. `"westeurope"`) |
+| `storage.replication_type` | `string` | `"LRS"` | `"LRS"`, `"GRS"`, `"ZRS"` etc. |
+| `storage.versioning` | `bool` | `true` | Aktiver blob-versionering |
+| `storage.retention_days` | `number` | `7` | Soft-delete retention i dage (0 = deaktiveret) |
+| `storage.container_name` | `string` | `"data"` | Navn på blob-containeren |
+| `storage.tags` | `map(string)` | `{}` | Tags på storage account'en |
 
 ## Outputs
 

@@ -2,6 +2,7 @@ variable "container_registry" {
   type = object({
     deploy = bool
     name   = string
+    tags   = optional(map(string), {}) # Azure only — OVH registries have no tags
 
     ovh = optional(object({
       project_id = string

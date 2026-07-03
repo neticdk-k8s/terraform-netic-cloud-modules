@@ -18,3 +18,8 @@ output "ssh_private_key" {
   value       = local.is_ovh ? one(module.ovh[*].ssh_private_key) : one(module.azure[*].ssh_private_key)
   sensitive   = true
 }
+
+output "network_interface_ids" {
+  description = "IDs of all NICs in the same order as vm.azure.networks (Azure only — null for OVH, where attachments are ports; see vm.ovh.port_ids)"
+  value       = local.is_ovh ? null : one(module.azure[*].network_interface_ids)
+}

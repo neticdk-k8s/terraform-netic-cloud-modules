@@ -44,17 +44,38 @@ resource "openstack_compute_keypair_v2" "default" {
 ###          Generate VMs          ###
 ######################################
 
+# block_device (boot-from-volume) needs the image UUID, not its name
+data "openstack_images_image_v2" "boot" {
+  count       = var.vm.os_disk != null ? 1 : 0
+  name        = var.vm.image_name
+  most_recent = true
+}
+
 # Linux VM
 resource "openstack_compute_instance_v2" "VMLinux" {
   count           = local.is_windows ? 0 : 1
   name            = var.vm.name
   flavor_name     = var.vm.size
-  image_name      = var.vm.image_name
+  image_name      = var.vm.os_disk == null ? var.vm.image_name : null
   key_pair        = openstack_compute_keypair_v2.default[0].name
   security_groups = var.vm.security_groups
   power_state     = var.vm.power_state
   user_data       = var.vm.user_data
   metadata        = merge(var.vm.tags, { resource_group = var.vm.resource_group })
+
+  # Boot from volume when os_disk is set (custom size/type — use a flex flavor)
+  dynamic "block_device" {
+    for_each = var.vm.os_disk != null ? [1] : []
+    content {
+      uuid                  = data.openstack_images_image_v2.boot[0].id
+      source_type           = "image"
+      destination_type      = "volume"
+      volume_size           = var.vm.os_disk.size_gb
+      volume_type           = var.vm.os_disk.volume_type
+      boot_index            = 0
+      delete_on_termination = true
+    }
+  }
 
   dynamic "network" {
     for_each = local.networks
@@ -65,7 +86,9 @@ resource "openstack_compute_instance_v2" "VMLinux" {
   }
 
   lifecycle {
-    ignore_changes = [image_name]
+    # block_device: a refreshed image UUID for the same image name must not
+    # force VM replacement (same reasoning as image_name)
+    ignore_changes = [image_name, block_device]
     precondition {
       condition     = !local.is_windows || var.vm.admin_pass != null
       error_message = "admin_pass must be set for Windows VMs."
@@ -80,11 +103,25 @@ resource "openstack_compute_instance_v2" "VMWindows" {
   count           = local.is_windows ? 1 : 0
   name            = var.vm.name
   flavor_name     = var.vm.size
-  image_name      = var.vm.image_name
+  image_name      = var.vm.os_disk == null ? var.vm.image_name : null
   admin_pass      = var.vm.admin_pass
   security_groups = var.vm.security_groups
   power_state     = var.vm.power_state
   metadata        = merge(var.vm.tags, { resource_group = var.vm.resource_group })
+
+  # Boot from volume when os_disk is set (custom size/type — use a flex flavor)
+  dynamic "block_device" {
+    for_each = var.vm.os_disk != null ? [1] : []
+    content {
+      uuid                  = data.openstack_images_image_v2.boot[0].id
+      source_type           = "image"
+      destination_type      = "volume"
+      volume_size           = var.vm.os_disk.size_gb
+      volume_type           = var.vm.os_disk.volume_type
+      boot_index            = 0
+      delete_on_termination = true
+    }
+  }
 
   dynamic "network" {
     for_each = local.networks
@@ -95,10 +132,26 @@ resource "openstack_compute_instance_v2" "VMWindows" {
   }
 
   lifecycle {
-    ignore_changes = [image_name]
+    ignore_changes = [image_name, block_device]
     precondition {
       condition     = var.vm.admin_pass != null
       error_message = "admin_pass must be set for Windows VMs."
     }
   }
+}
+
+######################################
+###          Data disks            ###
+######################################
+
+# Attach pre-created volumes (modules/storage/disk/ovh). count (not for_each)
+# because volume IDs are computed — the list *length* is known at plan time as
+# long as the caller builds the list from statically-keyed modules.
+# NB: attachments are index-based — removing a disk from the middle of the
+# list re-attaches the ones after it.
+resource "openstack_compute_volume_attach_v2" "disk" {
+  count = length(var.vm.disk_ids)
+
+  instance_id = local.is_windows ? openstack_compute_instance_v2.VMWindows[0].id : openstack_compute_instance_v2.VMLinux[0].id
+  volume_id   = var.vm.disk_ids[count.index]
 }

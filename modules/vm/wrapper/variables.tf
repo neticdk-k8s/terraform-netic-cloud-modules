@@ -14,10 +14,15 @@ variable "vm" {
     # (port_ids). Ports that need port security disabled (ip_forwarding) are
     # created separately via modules/network/port/ovh and passed in as port_ids.
     ovh = optional(object({
-      project_id      = string
-      image_name      = string
-      network_names   = optional(list(string), [])
-      port_ids        = optional(list(string), [])
+      project_id    = string
+      image_name    = string
+      network_names = optional(list(string), [])
+      port_ids      = optional(list(string), [])
+      disk_ids      = optional(list(string), []) # from modules/storage/disk (wrapper or ovh leaf)
+      os_disk = optional(object({
+        size_gb     = number
+        volume_type = optional(string, null)
+      }), null) # boot-from-volume — use a flex flavor (e.g. "b2-7-flex")
       power_state     = optional(string, "active")
       security_groups = optional(list(string), ["default"])
     }), null)
@@ -27,7 +32,19 @@ variable "vm" {
     # default to null/false. (Safe because NICs use count, not for_each — see
     # modules/vm/azure/variables.tf for the network_security_group_id caveat.)
     azure = optional(object({
-      admin_username = optional(string, "azureuser")
+      admin_username   = optional(string, "azureuser")
+      zone             = optional(string, null)
+      boot_diagnostics = optional(bool, false)
+      os_disk = optional(object({
+        size_gb              = optional(number, null)
+        storage_account_type = optional(string, "Premium_LRS")
+        caching              = optional(string, "ReadWrite")
+      }), {})
+      data_disks = optional(list(object({
+        disk_id = string # from modules/storage/disk (wrapper or azure leaf)
+        lun     = number
+        caching = optional(string, "ReadWrite")
+      })), [])
       networks = optional(list(object({
         subnet_id                 = string
         static_ip                 = optional(string, null)

@@ -3,7 +3,7 @@ resource "azurerm_virtual_network" "vnet" {
   location            = var.network.location
   resource_group_name = var.network.resource_group
   address_space       = var.network.address_space
-  tags                = { managed-by = "terraform" }
+  tags                = var.network.tags
 }
 
 resource "azurerm_subnet" "subnet" {
@@ -16,16 +16,16 @@ resource "azurerm_subnet" "subnet" {
 }
 
 resource "azurerm_network_security_group" "nsg" {
-  for_each = var.network.subnets
+  for_each = var.network.create_default_nsgs ? var.network.subnets : {}
 
   name                = "${var.network.name}-${each.key}-nsg"
   location            = var.network.location
   resource_group_name = var.network.resource_group
-  tags                = { managed-by = "terraform" }
+  tags                = var.network.tags
 }
 
 resource "azurerm_subnet_network_security_group_association" "nsg_assoc" {
-  for_each = var.network.subnets
+  for_each = var.network.create_default_nsgs ? var.network.subnets : {}
 
   subnet_id                 = azurerm_subnet.subnet[each.key].id
   network_security_group_id = azurerm_network_security_group.nsg[each.key].id

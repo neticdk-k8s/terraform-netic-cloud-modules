@@ -3,6 +3,7 @@ variable "security_group" {
     name           = string
     location       = string
     resource_group = string
+    tags           = optional(map(string), {})
     rules = optional(list(object({
       name      = string
       direction = string                # ingress / egress
@@ -10,6 +11,7 @@ variable "security_group" {
       port      = optional(string, "*") # "80", "8080-8090", "*"
       cidr      = optional(string, "*")
       access    = optional(string, "Allow") # Allow / Deny
+      priority  = optional(number, null)    # explicit priority — null = auto by list position
     })), [])
   })
 }

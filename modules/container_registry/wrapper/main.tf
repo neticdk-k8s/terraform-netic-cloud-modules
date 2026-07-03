@@ -28,6 +28,7 @@ module "azure" {
     location       = var.container_registry.azure.location
     resource_group = var.container_registry.azure.resource_group
     sku            = var.container_registry.azure.sku
+    tags           = var.container_registry.tags
   }
 
   registry_users  = var.registry_users

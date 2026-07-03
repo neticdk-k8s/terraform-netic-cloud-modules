@@ -5,6 +5,7 @@ variable "container_registry" {
     location       = string
     resource_group = string
     sku            = optional(string, "Basic")
+    tags           = optional(map(string), {})
   })
   description = "ACR configuration. IP restrictions require sku = 'Premium'. Name must be globally unique, 5-50 alphanumeric characters."
 }

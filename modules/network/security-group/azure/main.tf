@@ -13,8 +13,11 @@ locals {
     "icmp" = "Icmp"
   }
 
+  # Explicit priority wins; otherwise auto-assign by list position (100, 110, …).
+  # NB: with auto-assignment, reordering the rules list changes priorities —
+  # set priority explicitly on rules whose relative order matters.
   rules_indexed = [
-    for i, r in var.security_group.rules : merge(r, { priority = 100 + i * 10 })
+    for i, r in var.security_group.rules : merge(r, { priority = r.priority != null ? r.priority : 100 + i * 10 })
   ]
 }
 
@@ -22,7 +25,7 @@ resource "azurerm_network_security_group" "nsg" {
   name                = var.security_group.name
   location            = var.security_group.location
   resource_group_name = var.security_group.resource_group
-  tags                = { managed-by = "terraform" }
+  tags                = var.security_group.tags
 }
 
 resource "azurerm_network_security_rule" "rule" {

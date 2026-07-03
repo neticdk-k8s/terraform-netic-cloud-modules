@@ -20,9 +20,7 @@ resource "azurerm_container_registry" "registry" {
     }
   }
 
-  tags = {
-    managed-by = "terraform"
-  }
+  tags = var.container_registry.tags
 }
 
 # Shared read/write scope map used by all tokens

@@ -9,7 +9,11 @@ output "vm_ip" {
 }
 
 output "public_ip" {
-  description = "Public IP address assigned from the Ext-Net network"
+  # Only finds the IP when Ext-Net is attached BY NAME (create_public_ip).
+  # When the WAN is attached via port_ids (e.g. an Ext-Net port from
+  # modules/network/port/ovh), this is null — read the IP from the port
+  # module's ip_address output instead.
+  description = "Public IP from Ext-Net (null when Ext-Net is attached via port_ids — use the port module's ip_address instead)"
   value       = local.is_windows ? one([for net in flatten(openstack_compute_instance_v2.VMWindows[*].network) : net.fixed_ip_v4 if net.name == "Ext-Net"]) : one([for net in flatten(openstack_compute_instance_v2.VMLinux[*].network) : net.fixed_ip_v4 if net.name == "Ext-Net"])
 }
 
