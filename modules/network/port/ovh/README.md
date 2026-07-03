@@ -72,7 +72,9 @@ module "opnsense" {
 | Name | Description |
 |------|-------------|
 | `id` | Port UUID — pass to a VM via `vm.ovh.port_ids` |
-| `ip_address` | The first fixed IP assigned to the port (null if none) |
+| `ip_address` | Fixed IP, **IPv4 preferred** (an Ext-Net port often gets both v4 and v6) — null if none |
+| `ipv4_address` | First IPv4 fixed IP (null if none) |
+| `ipv6_address` | First IPv6 fixed IP (null if none) |
 | `mac_address` | MAC address of the port — match it against the guest's interfaces to verify vtnetN ordering |
 
 ## Notes
