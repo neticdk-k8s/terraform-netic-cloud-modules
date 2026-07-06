@@ -19,6 +19,11 @@ output "ssh_private_key" {
   sensitive   = true
 }
 
+output "instance_id" {
+  description = "OpenStack compute instance UUID (OVH only — null for Azure)"
+  value       = local.is_ovh ? one(module.ovh[*].instance_id) : null
+}
+
 output "network_interface_ids" {
   description = "IDs of all NICs in the same order as vm.azure.networks (Azure only — null for OVH, where attachments are ports; see vm.ovh.port_ids)"
   value       = local.is_ovh ? null : one(module.azure[*].network_interface_ids)

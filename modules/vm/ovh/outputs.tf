@@ -17,6 +17,11 @@ output "public_ip" {
   value       = local.is_windows ? one([for net in flatten(openstack_compute_instance_v2.VMWindows[*].network) : net.fixed_ip_v4 if net.name == "Ext-Net"]) : one([for net in flatten(openstack_compute_instance_v2.VMLinux[*].network) : net.fixed_ip_v4 if net.name == "Ext-Net"])
 }
 
+output "instance_id" {
+  description = "OpenStack compute instance UUID"
+  value       = local.is_windows ? one(openstack_compute_instance_v2.VMWindows[*].id) : one(openstack_compute_instance_v2.VMLinux[*].id)
+}
+
 output "ssh_private_key" {
   description = "Generated SSH private key in PEM format. Only set when no sshkey was provided."
   value       = local.create_ssh_key ? tls_private_key.ssh_key[0].private_key_pem : null
