@@ -1,13 +1,13 @@
 terraform {
   required_version = ">= 1.5"
   required_providers {
-    openstack = {
-      source  = "terraform-provider-openstack/openstack"
-      version = ">= 3.0.0"
+    ovh = {
+      source  = "ovh/ovh"
+      version = "~> 2.0"
     }
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 4.0.0"
+      version = "~> 4.0"
     }
   }
 }

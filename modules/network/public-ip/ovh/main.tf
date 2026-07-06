@@ -1,19 +1,15 @@
-locals {
-  tags = [for k, v in var.public_ip.tags : "${k}:${v}"]
+resource "ovh_cloud_project_failover_ip_attach" "aip" {
+  count        = var.public_ip.prevent_destroy ? 0 : 1
+  service_name = var.public_ip.service_name
+  ip           = var.public_ip.ip
+  routed_to    = var.public_ip.routed_to
 }
 
-resource "openstack_networking_floatingip_v2" "fip" {
-  count       = var.public_ip.prevent_destroy ? 0 : 1
-  pool        = "Ext-Net"
-  description = var.public_ip.name
-  tags        = concat(local.tags, ["resource_group:${var.public_ip.resource_group}"])
-}
-
-resource "openstack_networking_floatingip_v2" "fip_protected" {
-  count       = var.public_ip.prevent_destroy ? 1 : 0
-  pool        = "Ext-Net"
-  description = var.public_ip.name
-  tags        = concat(local.tags, ["resource_group:${var.public_ip.resource_group}"])
+resource "ovh_cloud_project_failover_ip_attach" "aip_protected" {
+  count        = var.public_ip.prevent_destroy ? 1 : 0
+  service_name = var.public_ip.service_name
+  ip           = var.public_ip.ip
+  routed_to    = var.public_ip.routed_to
 
   lifecycle {
     prevent_destroy = true

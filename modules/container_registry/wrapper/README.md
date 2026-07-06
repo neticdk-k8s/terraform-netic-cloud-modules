@@ -69,6 +69,65 @@ module "registry" {
 | `registry_id` | ID of the registry resource |
 | `user_passwords` | Map of usernames → passwords *(sensitive)* |
 
+## Using it in context — pulling images
+
+`registry_url` + `user_passwords` are what a client needs to authenticate. Two
+common consumers:
+
+### Kubernetes — imagePullSecret
+
+Turn the credentials into a `kubernetes.io/dockerconfigjson` secret that pods
+reference via `imagePullSecrets`:
+
+```hcl
+module "registry" {
+  source             = "./modules/container_registry/wrapper"
+  container_registry = { deploy = true, name = "myreg", ovh = { project_id = var.ovh_project_id, region = "GRA" } }
+  registry_users     = [{ login = "ci", email = "ci@example.com" }]
+}
+
+resource "kubernetes_secret" "regcred" {
+  metadata { name = "regcred" }
+  type = "kubernetes.io/dockerconfigjson"
+  data = {
+    ".dockerconfigjson" = jsonencode({
+      auths = {
+        (module.registry.registry_url) = {
+          username = "ci"
+          password = module.registry.user_passwords["ci"]
+          auth     = base64encode("ci:${module.registry.user_passwords["ci"]}")
+        }
+      }
+    })
+  }
+}
+# In a pod/deployment spec: imagePullSecrets: [{ name: regcred }]
+```
+
+### A VM / CI runner — docker login via cloud-init
+
+```hcl
+module "vm" {
+  source = "./modules/vm/wrapper"
+  vm = {
+    name           = "runner"
+    size           = "b2-7"
+    location       = "GRA11"
+    resource_group = var.ovh_project_id
+    user_data      = <<-EOT
+      #cloud-config
+      runcmd:
+        - echo '${module.registry.user_passwords["ci"]}' | docker login ${module.registry.registry_url} -u ci --password-stdin
+    EOT
+    ovh = { project_id = var.ovh_project_id, image_name = "Ubuntu 24.04", network_names = [module.network.network_name] }
+  }
+}
+```
+
+> `user_passwords` is `sensitive` and stored in Terraform state. Index it by the
+> `login` you defined in `registry_users`. For production, source the password
+> from a secrets manager rather than embedding it in `user_data`.
+
 ## Notes
 
 - Azure IP restrictions require `sku = "Premium"` in `container_registry.azure`.

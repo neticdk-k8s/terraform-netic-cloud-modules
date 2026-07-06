@@ -4,8 +4,13 @@ output "vm_name" {
 }
 
 output "vm_ip" {
-  description = "Private IPv4 address of the VM"
-  value       = azurerm_network_interface.nic.private_ip_address
+  description = "Private IPv4 address of the VM's primary NIC (networks[0])"
+  value       = azurerm_network_interface.nic[0].private_ip_address
+}
+
+output "network_interface_ids" {
+  description = "IDs of all NICs, in the same order as vm.networks"
+  value       = azurerm_network_interface.nic[*].id
 }
 
 output "public_ip" {

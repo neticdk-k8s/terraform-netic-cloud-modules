@@ -1,37 +1,45 @@
-# Public IP — OVH
+# Public IP (Additional IP) — OVH
 
-Reserverer en floating IP fra OVH's `Ext-Net`-pool med valgfri `prevent_destroy`-beskyttelse (default: `false`).
+Knytter en **forudbestilt** OVH **Additional IP** (failover IP) til en compute-instans
+via `ovh_cloud_project_failover_ip_attach`, med valgfri `prevent_destroy`-beskyttelse
+(default: `false`).
+
+> **Vigtigt — dette modul *opretter ikke* en IP.** I modsætning til Azure PIP, der
+> allokerer en helt ny adresse, forudsætter en OVH Additional IP at IP-blokken
+> allerede er **bestilt out-of-band** hos OVH. Modulet *router* blot den eksisterende
+> IP til en instans. Du skal derfor selv angive `ip` (den forudbestilte adresse) og
+> `routed_to` (instansens GUID).
+>
+> Skal du i stedet have en NAT'et pool-IP, brug [`network/floating-ip/ovh`](../../floating-ip/ovh).
 
 ## Usage
 
 ```hcl
-module "pip" {
+module "aip" {
   source = "./modules/network/public-ip/ovh"
 
   public_ip = {
-    name            = "my-fip"
-    location        = "GRA11"
-    resource_group  = var.ovh_project_id
-    prevent_destroy = true
+    service_name = var.ovh_project_id
+    ip           = "203.0.113.10"
+    routed_to    = module.vm.instance_id
   }
 }
 
-output "ip" { value = module.pip.ip_address }
+output "ip" { value = module.aip.ip_address }
 ```
 
 ## Inputs
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `public_ip.name` | `string` | — | Navn (bruges som tag) |
-| `public_ip.location` | `string` | — | OVH-region (f.eks. `"GRA11"`) |
-| `public_ip.resource_group` | `string` | — | OVH project ID / service name |
-| `public_ip.prevent_destroy` | `bool` | `false` | Beskyt mod utilsigtet sletning |
-| `public_ip.tags` | `map(string)` | `{}` | Tags på ressourcen |
+| `public_ip.service_name` | `string` | — | OVH public cloud project ID (ovh_project_id) |
+| `public_ip.ip` | `string` | — | Den forudbestilte Additional IP-adresse der skal attaches |
+| `public_ip.routed_to` | `string` | — | GUID på instansen IP'en skal routes til |
+| `public_ip.prevent_destroy` | `bool` | `false` | Beskyt mod utilsigtet detach |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| `ip_address` | Den reserverede floating IP-adresse |
-| `id` | Floating IP ID (bruges ved association med en VM-port) |
+| `ip_address` | Den attachede Additional IP-adresse |
+| `id` | ID på Additional IP-blokken |

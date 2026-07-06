@@ -39,5 +39,5 @@ resource "azurerm_kubernetes_cluster" "aks" {
     }
   }
 
-  tags = merge({ managed-by = "terraform" }, var.cluster_config.tags)
+  tags = var.cluster_config.tags
 }

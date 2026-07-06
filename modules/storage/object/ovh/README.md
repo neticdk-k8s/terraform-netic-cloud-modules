@@ -9,8 +9,11 @@ module "storage" {
   source = "./modules/storage/object/ovh"
 
   ovh_project_id = var.ovh_project_id
-  name           = "my-bucket"
-  region         = "GRA"
+
+  storage = {
+    name   = "my-bucket"
+    region = "GRA"
+  }
 }
 ```
 
@@ -19,11 +22,11 @@ module "storage" {
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
 | `ovh_project_id` | `string` | — | OVH Cloud project ID / service name |
-| `name` | `string` | — | Bucket-navn |
-| `region` | `string` | `"GRA"` | OVH-region (f.eks. `"GRA"`, `"SBG"`) |
-| `versioning` | `string` | `"enabled"` | `"enabled"` eller `"disabled"` |
-| `encryption_sse` | `string` | `"AES256"` | SSE-algoritme |
-| `object_lock_days` | `number` | `0` | Retention i dage (0 = deaktiveret) |
+| `storage.name` | `string` | — | Bucket-navn |
+| `storage.region` | `string` | `"GRA"` | OVH-region (f.eks. `"GRA"`, `"SBG"`) |
+| `storage.versioning` | `string` | `"enabled"` | `"enabled"` eller `"disabled"` |
+| `storage.encryption_sse` | `string` | `"AES256"` | SSE-algoritme |
+| `storage.object_lock_days` | `number` | `0` | Retention i dage (0 = deaktiveret) |
 
 ## Outputs
 

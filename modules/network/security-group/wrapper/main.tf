@@ -10,6 +10,7 @@ module "azure" {
     name           = var.security_group.name
     location       = var.security_group.azure.location
     resource_group = var.security_group.azure.resource_group
+    tags           = var.security_group.tags
     rules          = var.security_group.rules
   }
 }
@@ -20,6 +21,7 @@ module "ovh" {
 
   security_group = {
     name  = var.security_group.name
+    tags  = var.security_group.tags
     rules = var.security_group.rules
   }
 }

@@ -3,31 +3,13 @@ variable "ovh_project_id" {
   type        = string
 }
 
-variable "name" {
-  description = "Name of the object storage bucket"
-  type        = string
-}
-
-variable "region" {
-  description = "OVH region (e.g. 'GRA')"
-  type        = string
-  default     = "GRA"
-}
-
-variable "versioning" {
-  description = "Versioning status: 'enabled' or 'disabled'"
-  type        = string
-  default     = "enabled"
-}
-
-variable "encryption_sse" {
-  description = "Server-side encryption algorithm (e.g. 'AES256')"
-  type        = string
-  default     = "AES256"
-}
-
-variable "object_lock_days" {
-  description = "Retention period in days (0 = disabled)"
-  type        = number
-  default     = 0
+variable "storage" {
+  type = object({
+    name             = string
+    region           = optional(string, "GRA")
+    versioning       = optional(string, "enabled") # 'enabled' or 'disabled'
+    encryption_sse   = optional(string, "AES256")
+    object_lock_days = optional(number, 0) # 0 = disabled
+  })
+  description = "Object storage bucket configuration"
 }

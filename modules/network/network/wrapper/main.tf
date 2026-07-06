@@ -20,10 +20,12 @@ module "azure" {
   source = "../azure"
 
   network = {
-    name           = var.network.name
-    location       = var.network.azure.location
-    resource_group = var.network.azure.resource_group
-    address_space  = var.network.azure.address_space
-    subnets        = var.network.azure.subnets
+    name                = var.network.name
+    location            = var.network.azure.location
+    resource_group      = var.network.azure.resource_group
+    address_space       = var.network.azure.address_space
+    subnets             = var.network.azure.subnets
+    create_default_nsgs = var.network.azure.create_default_nsgs
+    tags                = var.network.tags
   }
 }

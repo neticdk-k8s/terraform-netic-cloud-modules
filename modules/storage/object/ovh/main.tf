@@ -2,22 +2,22 @@
 
 resource "ovh_cloud_project_storage" "storage" {
   service_name = var.ovh_project_id
-  region_name  = var.region
-  name         = var.name
+  region_name  = var.storage.region
+  name         = var.storage.name
 
   encryption = {
-    sse_algorithm = var.encryption_sse
+    sse_algorithm = var.storage.encryption_sse
   }
 
   versioning = {
-    status = var.versioning
+    status = var.storage.versioning
   }
 
-  object_lock = var.object_lock_days > 0 ? {
+  object_lock = var.storage.object_lock_days > 0 ? {
     status = "enabled"
     rule = {
       mode   = "governance"
-      period = "P${var.object_lock_days}D"
+      period = "P${var.storage.object_lock_days}D"
     }
   } : null
 }
