@@ -5,10 +5,12 @@ module "azure_k8s_cluster" {
   cluster_config = {
     name    = var.cluster_config.cluster_name
     version = var.cluster_config.k8s_version
+    plan    = title(lower(var.cluster_config.plan)) # "free"/"standard" -> "Free"/"Standard"
     tags    = var.cluster_config.tags
   }
 
   node_config = {
+    node_pool_name     = var.node_config.node_pool_name
     sku                = local.resolved_node_sku
     node_count         = var.node_config.node_count
     autoscale_enabled  = var.node_config.autoscale_enabled
@@ -38,26 +40,35 @@ module "ovh_k8s_cluster" {
   cluster_config = {
     name    = var.cluster_config.cluster_name
     version = var.cluster_config.k8s_version
+    plan    = lower(var.cluster_config.plan) # OVH expects lowercase "free"/"standard"
     tags    = var.cluster_config.tags
   }
 
   node_config = {
-    sku                = local.resolved_node_sku
-    node_count         = var.node_config.node_count
-    autoscale_enabled  = var.node_config.autoscale_enabled
-    min_count          = var.node_config.min_count
-    max_count          = var.node_config.max_count
-    availability_zones = var.node_config.availability_zones
-    monthly_billed     = var.node_config.monthly_billed
-    anti_affinity      = var.node_config.anti_affinity
-    labels             = var.node_config.labels
-    taints             = var.node_config.taints
+    node_pool_name      = var.node_config.node_pool_name
+    sku                 = local.resolved_node_sku
+    node_count          = var.node_config.node_count
+    autoscale_enabled   = var.node_config.autoscale_enabled
+    min_count           = var.node_config.min_count
+    max_count           = var.node_config.max_count
+    availability_zones  = var.node_config.availability_zones
+    monthly_billed      = var.node_config.monthly_billed
+    anti_affinity       = var.node_config.anti_affinity
+    attach_floating_ips = var.node_config.attach_floating_ips
+    labels              = var.node_config.labels
+    taints              = var.node_config.taints
   }
 
   cloud_settings = {
-    ovh_project_id     = var.cloud_settings.ovh.project_id
-    ovh_region         = var.cloud_settings.region
-    private_network_id = var.cloud_settings.ovh.private_network_id
-    ip_restrictions    = var.cloud_settings.ip_restrictions
+    ovh_project_id           = var.cloud_settings.ovh.project_id
+    ovh_region               = var.cloud_settings.region
+    private_network_id       = var.cloud_settings.ovh.private_network_id
+    nodes_subnet_id          = var.cloud_settings.ovh.nodes_subnet_id
+    load_balancers_subnet_id = var.cloud_settings.ovh.load_balancers_subnet_id
+
+    private_network_routing_as_default = var.cloud_settings.ovh.private_network_routing_as_default
+    default_vrack_gateway              = var.cloud_settings.ovh.default_vrack_gateway
+
+    ip_restrictions = var.cloud_settings.ip_restrictions
   }
 }

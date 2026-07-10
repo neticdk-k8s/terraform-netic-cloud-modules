@@ -51,6 +51,7 @@ module "kubernetes" {
 |-------|------|---------|-------------|
 | `name` | `string` | — | Cluster name |
 | `version` | `string` | — | Kubernetes version (e.g. `"1.30"`) |
+| `plan` | `string` | `"Free"` | AKS SKU tier — `"Free"` or `"Standard"` (SLA på control plane) |
 | `location` | `string` | — | Azure region (e.g. `"westeurope"`) |
 | `resource_group` | `string` | — | Name of an existing resource group |
 | `default_node_pool_name` | `string` | `"system"` | Key in `kube_node_pools` to use as the AKS system pool |

@@ -79,6 +79,7 @@ module "kubernetes" {
 |------|------|---------|-------------|
 | `cluster_name` | `string` | — | Clusternavn |
 | `k8s_version` | `string` | `"1.34"` | Kubernetes major.minor version |
+| `plan` | `string` | `"free"` | Control-plane tier — `"free"` eller `"standard"` (Azure: Free/Standard SKU tier, OVH: free/standard plan) |
 | `tags` | `map(string)` | `{}` | Tags på ressourcerne |
 
 ### `node_config`
@@ -112,6 +113,8 @@ module "kubernetes" {
 | `ovh` | `object` | `null` | OVH-config |
 | `ovh.project_id` | `string` | — | OVH project ID |
 | `ovh.private_network_id` | `string` | `null` | Privat netværk (vRack) til noderne |
+| `ovh.nodes_subnet_id` | `string` | `null` | OpenStack subnet-UUID til noderne — **kræves af OVH når `private_network_id` er sat** |
+| `ovh.load_balancers_subnet_id` | `string` | `null` | OpenStack subnet-UUID til load balancers (default = nodes-subnet) |
 
 ## Outputs
 

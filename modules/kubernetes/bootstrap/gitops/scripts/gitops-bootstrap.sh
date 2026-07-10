@@ -19,7 +19,33 @@ known_hosts_tmp="/tmp/known_hosts-${_run_id}"
 keyscan_pod="ssh-keyscan-${_run_id}"
 ssh_port="${5:-7999}"
 
-log "Args: cluster_repo=$1  bootstrap_path=$2  gotk_repo=$3  gotk_path=$4  ssh_port=${ssh_port}"
+git_protocol="${git_protocol:-https}"
+ssh_key_file="/tmp/git-ssh-key-${_run_id}"
+ssh_known_hosts="/tmp/git-ssh-known_hosts-${_run_id}"
+
+# Extract the hostname from an https-style "host/path", an "ssh://user@host:port/path"
+# or an scp-style "user@host:path" repo reference.
+git_host_of() {
+  local url="$1"
+  url="${url#ssh://}" # strip scheme
+  url="${url#*@}"     # strip user@
+  url="${url%%/*}"    # take up to first /
+  url="${url%%:*}"    # strip :port
+  printf '%s' "$url"
+}
+
+# Clone using the configured protocol: https injects url-encoded creds; ssh relies
+# on GIT_SSH_COMMAND (set up below) and expects an ssh-style URL.
+clone_repo() {
+  local repo="$1" dest="$2"
+  if [ "$git_protocol" = "ssh" ]; then
+    git clone --depth 1 "$repo" "$dest"
+  else
+    git clone --depth 1 "https://${gitops_username}:${gitops_token}@${repo}" "$dest"
+  fi
+}
+
+log "Args: cluster_repo=$1  bootstrap_path=$2  gotk_repo=$3  gotk_path=$4  ssh_port=${ssh_port}  protocol=${git_protocol}"
 
 # Dumpes ved enhver fejl, så CI-loggen altid har cluster-kontekst at arbejde med
 dump_diagnostics() {
@@ -46,14 +72,28 @@ dump_diagnostics() {
 trap 'rc=$?; [ $rc -ne 0 ] && dump_diagnostics $rc $LINENO; exit $rc' ERR
 
 # Pod-oprydning skal ske før kubeconfig slettes — ellers har kubectl ingen adgang
-trap 'kubectl delete pod "$keyscan_pod" --ignore-not-found=true 2>/dev/null || true; rm -f "$KUBECONFIG" "$known_hosts_tmp"; rm -rf "$checkout_gotk" "$checkout_config"' EXIT
+trap 'kubectl delete pod "$keyscan_pod" --ignore-not-found=true 2>/dev/null || true; rm -f "$KUBECONFIG" "$known_hosts_tmp" "$ssh_key_file" "$ssh_known_hosts"; rm -rf "$checkout_gotk" "$checkout_config"' EXIT
 
 gitops_username=$(echo "${netic_username}" | jq -Rr @uri)
 gitops_token=$(echo "${netic_password}" | jq -Rr @uri)
 
+# Set up SSH key auth for the clones when requested. accept-new records the host
+# key into a per-run known_hosts on first connect (no interactive prompt in CI).
+if [ "$git_protocol" = "ssh" ]; then
+  if [ -z "${git_ssh_private_key:-}" ]; then
+    log "ERROR: git_protocol=ssh but git_ssh_private_key is empty"
+    exit 1
+  fi
+  printf '%s\n' "$git_ssh_private_key" > "$ssh_key_file"
+  chmod 600 "$ssh_key_file"
+  : > "$ssh_known_hosts"
+  export GIT_SSH_COMMAND="ssh -i ${ssh_key_file} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=${ssh_known_hosts}"
+  log "Using SSH key auth for git clones"
+fi
+
 # --- Apply Flux / gotk components ---
 log "Cloning gotk repo: $3"
-git clone --depth 1 "https://${gitops_username}:${gitops_token}@$3" "${checkout_gotk}"
+clone_repo "$3" "${checkout_gotk}"
 log "Clone OK — entering ${checkout_gotk}/$4"
 
 pushd "${checkout_gotk}/$4"
@@ -68,7 +108,7 @@ popd
 # Køres inde i clusteret så scriptet ikke er afhængig af netværksadgang til git-serveren
 if kubectl get secret kubernetes-config-git-auth -n netic-gitops-system &>/dev/null; then
   log "Patching kubernetes-config-git-auth known_hosts"
-  git_host=$(echo "$1" | cut -d'/' -f1)
+  git_host=$(git_host_of "$1")
 
   # Image med ssh-keyscan præinstalleret — runtime 'apk add' fejler hvis
   # pod-nettet ikke kan nå alpines CDN (set på OVH). ghcr.io fremfor Docker Hub
@@ -99,7 +139,7 @@ fi
 
 # --- Bootstrap the cluster GitOps repo ---
 log "Cloning cluster config repo: $1"
-git clone --depth 1 "https://${gitops_username}:${gitops_token}@$1" "${checkout_config}"
+clone_repo "$1" "${checkout_config}"
 log "Clone OK — entering ${checkout_config}/$2"
 
 pushd "${checkout_config}/$2"

@@ -13,6 +13,11 @@ output "subnet_ids" {
   description = "Map of subnet name/region to subnet ID"
 }
 
+output "network_ids" {
+  value       = local.is_ovh ? one(module.ovh[*].network_ids) : null
+  description = "Map of region to OpenStack network UUID (OVH only, null for Azure)"
+}
+
 output "nsg_ids" {
   value       = local.is_ovh ? null : one(module.azure[*].nsg_ids)
   description = "Map of subnet names to NSG IDs (Azure only, null for OVH)"

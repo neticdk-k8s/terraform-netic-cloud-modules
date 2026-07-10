@@ -15,6 +15,9 @@
 | [azure](kubernetes/azure/README.md) | Azure Kubernetes Service (AKS) |
 | [ovh](kubernetes/ovh/README.md) | OVHcloud Managed Kubernetes |
 | [wrapper](kubernetes/wrapper/README.md) | Fælles indgangspunkt — vælg cloud via `cloud_settings.cloud_provider` |
+| [nodepool/azure](kubernetes/nodepool/azure/README.md) | Ekstra AKS user node pool |
+| [nodepool/ovh](kubernetes/nodepool/ovh/README.md) | Ekstra OVH node pool(s) — én pr. zone i 3AZ |
+| [nodepool/wrapper](kubernetes/nodepool/wrapper/README.md) | Fælles indgangspunkt — tilføj node pool via `nodepool.azure` / `nodepool.ovh` |
 | [bootstrap/gitops](kubernetes/bootstrap/gitops/README.md) | Bootstrap cluster med GitOps og git-auth secrets |
 
 ## Network
@@ -30,6 +33,9 @@
 | [security-group/azure](network/security-group/azure/README.md) | Azure NSG med regler |
 | [security-group/ovh](network/security-group/ovh/README.md) | OpenStack security group med regler |
 | [security-group/wrapper](network/security-group/wrapper/README.md) | Fælles indgangspunkt — vælg cloud via `security_group.azure` / `security_group.ovh` |
+| [gateway/azure](network/gateway/azure/README.md) | Azure NAT Gateway — udgående internet for subnets via én public IP |
+| [gateway/ovh](network/gateway/ovh/README.md) | OVH Public Cloud Gateway — udgående internet (SNAT) for privat net |
+| [gateway/wrapper](network/gateway/wrapper/README.md) | Fælles indgangspunkt — vælg cloud via `gateway.azure` / `gateway.ovh` |
 
 ## Storage
 

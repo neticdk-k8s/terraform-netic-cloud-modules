@@ -32,6 +32,32 @@ variable "git_ssh_port" {
   default     = 7999
 }
 
+variable "git_protocol" {
+  type        = string
+  description = <<-EOT
+    Protocol the bootstrap script uses to clone gotk_repo and cluster_repo:
+      - "https" (default): injects url-encoded username/token from git_auth["netic"].
+        Pass HTTPS-style repos, e.g. "git.netic.dk/scm/pd/gotk-bootstrap-k8s.git".
+      - "ssh": authenticates with git_ssh_private_key. Pass SSH-style repos, e.g.
+        "ssh://git@git.netic.dk:7999/pd/gotk-bootstrap-k8s.git".
+    Only affects the script's own clones — Flux's in-cluster git access still uses
+    the SSH deploy key in the kubernetes-config-git-auth secret.
+  EOT
+  default     = "https"
+
+  validation {
+    condition     = contains(["https", "ssh"], var.git_protocol)
+    error_message = "git_protocol must be \"https\" or \"ssh\"."
+  }
+}
+
+variable "git_ssh_private_key" {
+  type        = string
+  sensitive   = true
+  description = "Private SSH key (OpenSSH/PEM) used to clone when git_protocol = \"ssh\". Required in that case."
+  default     = ""
+}
+
 variable "keyscan_image" {
   type        = string
   description = "Container image used for the in-cluster ssh-keyscan pod. Must have ssh-keyscan preinstalled — runtime package install fails on clusters where pod egress to package CDNs is restricted."

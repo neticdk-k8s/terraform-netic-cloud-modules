@@ -26,6 +26,28 @@ module "gitops" {
 }
 ```
 
+### SSH i stedet for HTTPS
+
+Sæt `git_protocol = "ssh"`, angiv ssh-URL'er som repos og send den private nøgle:
+
+```hcl
+module "gitops" {
+  source = "./modules/kubernetes/bootstrap/gitops"
+
+  kubeconfig          = module.kubernetes.kubeconfig
+  git_protocol        = "ssh"
+  gotk_repo           = "ssh://git@git.netic.dk:7999/pd/gotk-bootstrap-k8s.git"
+  cluster_repo        = "ssh://git@git.netic.dk:7999/kub/ovh-kubernetes-config.git"
+  bootstrap_path      = "clusters/production"
+  git_ssh_private_key = var.gitops_ssh_key
+
+  git_auth = { netic = {}, kubernetes-config = { identity = var.gitops_ssh_key } }
+}
+```
+
+> Bemærk: HTTPS- og SSH-URL'erne peger på forskellige stier på Bitbucket
+> (`/scm/pd/...` vs `/pd/...`) — det er ikke bare et protokol-skift, brug den rigtige URL-form.
+
 ## Inputs
 
 | Name | Type | Default | Description |
@@ -37,6 +59,8 @@ module "gitops" {
 | `gotk_repo` | `string` | `git.netic.dk/scm/pd/gotk-bootstrap-k8s.git` | Git URL til gotk-bootstrap-repoet (Flux-komponenter) |
 | `gotk_path` | `string` | `gotk` | Sti i `gotk_repo` med `gotk-components.yaml` |
 | `git_ssh_port` | `number` | `7999` | SSH-port på git-serveren, bruges til `ssh-keyscan` ved patch af `known_hosts` (7999 = Bitbucket Server-default) |
+| `git_protocol` | `string` | `https` | Clone-protokol for scriptets egne clones: `https` (token fra `git_auth["netic"]`) eller `ssh` (nøgle fra `git_ssh_private_key`). Ved `ssh` angives ssh-URL'er som repos |
+| `git_ssh_private_key` | `string` | `""` | Privat SSH-nøgle brugt når `git_protocol = "ssh"` *(sensitive)* |
 | `keyscan_image` | `string` | `ghcr.io/linuxserver/openssh-server:latest` | Image til den in-cluster ssh-keyscan-pod — skal have `ssh-keyscan` præinstalleret (runtime-pakkeinstall fejler på clustre med begrænset pod-egress) |
 
 ## Outputs

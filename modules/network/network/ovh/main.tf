@@ -1,4 +1,12 @@
+# An OVH private network materializes as a separate OpenStack network (with its
+# own UUID) in each region it spans, and OpenStack's API is per-region. Both
+# lookups are therefore keyed per region and pin `region` explicitly — otherwise
+# they hit the provider's default region and return nothing for other regions.
 data "openstack_networking_network_v2" "net" {
+  for_each = {
+    for r in var.network.regions : r.region => r
+  }
+  region     = each.value.region
   name       = var.network.name
   depends_on = [ovh_cloud_project_network_private.net]
 }
@@ -7,8 +15,9 @@ data "openstack_networking_subnet_v2" "subnet" {
   for_each = {
     for r in var.network.regions : r.region => r
   }
+  region     = each.value.region
   cidr       = each.value.subnet
-  network_id = data.openstack_networking_network_v2.net.id
+  network_id = data.openstack_networking_network_v2.net[each.key].id
   depends_on = [ovh_cloud_project_network_private_subnet.subnet]
 }
 

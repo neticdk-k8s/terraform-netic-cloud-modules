@@ -61,7 +61,8 @@ module "network" {
 
 | Name | Description |
 |------|-------------|
-| `network_id` | ID of the private network |
+| `network_id` | OpenStack UUID of the private network in the first region (single-region use) |
+| `network_ids` | Map of region → OpenStack network UUID (per-region; an OVH private net has a separate UUID per region) |
 | `network_name` | Name of the private network |
 | `subnet_ids` | Map of region → subnet ID |
 

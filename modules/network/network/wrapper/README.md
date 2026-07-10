@@ -83,6 +83,7 @@ output "subnet_ids" { value = module.network.subnet_ids }
 | `network_id` | ID på det oprettede netværk |
 | `network_name` | Navn på netværket |
 | `subnet_ids` | Map af region/navn → subnet ID |
+| `network_ids` | Map af region → OpenStack netværks-UUID (kun OVH, null for Azure) |
 | `nsg_ids` | Map af subnetnavn → NSG ID (kun Azure; tomt map hvis `create_default_nsgs = false`, null for OVH) |
 
 ## Brug i kontekst — en VM på netværket

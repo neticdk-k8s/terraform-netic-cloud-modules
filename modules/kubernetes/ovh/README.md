@@ -50,6 +50,9 @@ module "kubernetes" {
 |------|------|-------------|
 | `ovh_project_id` | `string` | OVH Public Cloud project ID |
 | `ovh_region` | `string` | OVH region (e.g. `"GRA11"`) |
+| `private_network_id` | `string` | OpenStack network UUID for the nodes (optional) |
+| `nodes_subnet_id` | `string` | OpenStack subnet UUID for the nodes — required by OVH when `private_network_id` is set |
+| `load_balancers_subnet_id` | `string` | OpenStack subnet UUID for load balancers (optional; default = nodes subnet) |
 | `kube_cluster` | `object` | Cluster configuration (see below) |
 | `kube_node_pools` | `map(object)` | Node pools to create (default: `{}`) |
 
@@ -59,6 +62,7 @@ module "kubernetes" {
 |-------|------|---------|-------------|
 | `name` | `string` | — | Cluster name |
 | `version` | `string` | — | Kubernetes version (e.g. `"1.30"`) |
+| `plan` | `string` | `"free"` | Control-plane plan — `"free"` or `"standard"` (SLA + high-availability control plane) |
 | `ip_restrictions` | `list(string)` | `[]` | CIDRs allowed to reach the Kube API |
 
 ### `kube_node_pools` map entry
