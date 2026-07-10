@@ -2,6 +2,7 @@ variable "cluster_config" {
   type = object({
     name    = string
     version = string
+    plan    = optional(string, "Free") # AKS SKU tier: "Free" or "Standard"
     tags    = optional(map(string), {})
   })
   description = "Core Kubernetes cluster settings"
@@ -9,6 +10,7 @@ variable "cluster_config" {
 
 variable "node_config" {
   type = object({
+    node_pool_name     = optional(string, "defaultpool")
     sku                = string
     node_count         = number
     autoscale_enabled  = bool

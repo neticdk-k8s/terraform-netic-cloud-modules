@@ -5,9 +5,10 @@ resource "azurerm_kubernetes_cluster" "aks" {
   resource_group_name = var.cloud_settings.resource_group
   dns_prefix          = var.cloud_settings.dns_prefix
   kubernetes_version  = var.cluster_config.version
+  sku_tier            = var.cluster_config.plan
 
   default_node_pool {
-    name                 = "defaultpool"
+    name                 = var.node_config.node_pool_name
     vm_size              = var.node_config.sku
     node_count           = var.node_config.node_count
     vnet_subnet_id       = var.cloud_settings.vnet_subnet_id
