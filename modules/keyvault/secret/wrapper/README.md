@@ -23,23 +23,27 @@ module "secrets" {
 }
 ```
 
-### OVH — læg secrets i Cloud Key Manager
+### OVH — læg secrets i OKMS
 
 ```hcl
+module "keyvault" {
+  source    = "github.com/neticdk-k8s/terraform-netic-cloud-modules//modules/keyvault/wrapper?ref=v0.0.9"
+  key_vault = {
+    name   = "kms-netic-test"
+    region = "eu-west-gra"
+    ovh    = { subsidiary = "IE" }
+  }
+}
+
 module "secrets" {
   source  = "github.com/neticdk-k8s/terraform-netic-cloud-modules//modules/keyvault/secret/wrapper?ref=v0.0.9"
   secrets = { login = "kodeord" }
-  vault = {
-    ovh = {
-      project_id = "<dit OVH project ID>"
-      region     = "GRA"
-    }
-  }
+  vault   = { ovh = { okms_id = module.keyvault.id } }
 }
 ```
 
-> OVH-secrets er projekt/region-scoped og kræver ikke en container — `keyvault/wrapper` er derfor
-> valgfri på OVH (kun nødvendig hvis du vil gruppere secrets i en container).
+> På OKMS peger secrets på en instans via `okms_id` — `keyvault/wrapper` er derfor påkrævet på både
+> Azure og OVH (symmetrisk: begge secret-kald tager vaultens id).
 
 ## Output
 

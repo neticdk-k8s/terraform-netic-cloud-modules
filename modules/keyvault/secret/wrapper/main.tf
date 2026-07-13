@@ -6,11 +6,8 @@ module "ovh" {
   count  = local.is_ovh ? 1 : 0
   source = "../ovh"
 
-  ovh_project_id       = var.vault.ovh.project_id
-  region               = var.vault.ovh.region
-  secret_type          = var.vault.ovh.secret_type
-  payload_content_type = var.vault.ovh.payload_content_type
-  secrets              = var.secrets
+  okms_id = var.vault.ovh.okms_id
+  secrets = var.secrets
 }
 
 module "azure" {

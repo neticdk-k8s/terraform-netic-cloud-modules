@@ -1,26 +1,23 @@
 # keyvault/ovh
 
-Opretter en **OVH Cloud Key Manager (KMS) container** (`ovh_cloud_key_manager_container`) — det
-nærmeste OVH-modstykke til en Azure Key Vault. Kaldes normalt via [`../wrapper`](../wrapper).
+Opretter en **OVHcloud KMS (OKMS)** instans (`ovh_okms`) — OVH's Key Management / Secret Manager, det
+nærmeste modstykke til en Azure Key Vault. Kaldes normalt via [`../wrapper`](../wrapper).
 
-> **Bemærk:** OVH-secrets (`ovh_cloud_key_manager_secret` i [`../secret`](../secret)) er
-> **projekt/region-scoped** og refererer *ikke* containeren — de kan oprettes uden den. Containeren
-> er en valgfri logisk gruppering, som her giver et "vault"-objekt symmetrisk med Azure.
+> **Konto-scoped:** OKMS bestilles på kontoen ud fra `ovh_subsidiary` + `region` — ikke et
+> Public Cloud `project_id`. Secrets tilføjes med [`../secret`](../secret) via instansens `id` (okms_id).
 
 ## Input
 
 | Variabel | Beskrivelse |
 |---|---|
-| `ovh_project_id` | OVH Public Cloud project ID (`service_name`) |
-| `key_vault.name` | Navn på containeren |
-| `key_vault.region` | KMS-region |
-| `key_vault.type` | `GENERIC` (default) / `CERTIFICATE` / `RSA` |
-| `key_vault.availability_zone` | Valgfri AZ |
+| `key_vault.name` | Display-navn på OKMS-instansen |
+| `key_vault.region` | OKMS-region, fx `eu-west-gra` |
+| `key_vault.subsidiary` | OVH subsidiary (FR / GB / DE / IE / …) — skal matche kontoen |
 
 ## Output
 
 | Output | Beskrivelse |
 |---|---|
-| `id` | Container-ID |
-| `name` | Navn |
-| `uri` | Altid `null` (OVH har ingen vault-URI) |
+| `id` | OKMS-instansens ID (okms_id) — input til secret-modulet |
+| `name` | Display-navn |
+| `uri` | REST-endpoint |

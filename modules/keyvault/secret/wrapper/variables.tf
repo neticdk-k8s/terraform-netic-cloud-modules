@@ -7,10 +7,7 @@ variable "secrets" {
 variable "vault" {
   type = object({
     ovh = optional(object({
-      project_id           = string
-      region               = string
-      secret_type          = optional(string, "OPAQUE")
-      payload_content_type = optional(string, "TEXT_PLAIN")
+      okms_id = string
     }), null)
 
     azure = optional(object({

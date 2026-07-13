@@ -1,24 +1,22 @@
 # keyvault/secret/ovh
 
-Tilføjer secrets (`ovh_cloud_key_manager_secret`) til OVH Cloud Key Manager (KMS). Secrets er
-**projekt/region-scoped** og kræver ikke en container. Kaldes normalt via [`../wrapper`](../wrapper).
+Tilføjer secrets (`ovh_okms_secret`) til en OKMS-instans. Hvert secret-navn bliver en **path** med
+versioneret data. Kaldes normalt via [`../wrapper`](../wrapper).
 
 ## Input
 
 | Variabel | Beskrivelse |
 |---|---|
-| `ovh_project_id` | OVH project ID (`service_name`) |
-| `region` | KMS-region (skal matche vaulten) |
-| `secrets` | Map `navn → værdi`, fx `{ login = "kodeord" }` (sensitive) |
-| `secret_type` | `OPAQUE` (default) / SYMMETRIC / PUBLIC / PRIVATE / PASSPHRASE / CERTIFICATE |
-| `payload_content_type` | `TEXT_PLAIN` (default, klartekst) / `APPLICATION_OCTET_STREAM` (kræver base64) |
+| `okms_id` | OKMS-instansens ID (output `id` fra keyvault-modulet) |
+| `secrets` | Map `navn → værdi`, fx `{ login = "kodeord" }` (sensitive) — navnet bruges som path |
 
-> `payload` er write-only i OVH's API og returneres aldrig — Terraform kan derfor ikke drift-detektere
-> selve værdien. For et login/kodeord passer `secret_type = OPAQUE` (eller `PASSPHRASE`) med
-> `TEXT_PLAIN`.
+> OKMS kræver at `version.data` er **JSON key-value**, så værdien gemmes som `{"value": "<værdi>"}`
+> på path'en — læs den tilbage under nøglen `value`. `version.data` er write-only i OVH's API; første
+> apply opretter version 1. `ovh_okms_secret` har intet selvstændigt `id` — det identificeres af
+> `okms_id` + `path`.
 
 ## Output
 
 | Output | Beskrivelse |
 |---|---|
-| `secret_ids` | Map: navn → secret-ID |
+| `secret_ids` | Map: navn → path i OKMS |
