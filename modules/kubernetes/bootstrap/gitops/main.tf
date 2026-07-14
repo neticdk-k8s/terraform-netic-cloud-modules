@@ -107,22 +107,17 @@ resource "null_resource" "netic_git_auth" {
     }
   }
 
+lifecycle {
+  ignore_changes = [triggers]
+}
   depends_on = [null_resource.wait_for_workers]
 }
 
 resource "null_resource" "gitops_bootstrap" {
-  # Re-run bootstrap når repo/path eller git-credentials ændres
-  triggers = {
-    cluster_repo     = var.cluster_repo
-    bootstrap_path   = var.bootstrap_path
-    gotk_repo        = var.gotk_repo
-    gotk_path        = var.gotk_path
-    git_ssh_port     = var.git_ssh_port
-    keyscan_image    = var.keyscan_image
-    git_protocol     = var.git_protocol
-    git_auth_hash    = sha256(jsonencode(var.git_auth))
-    git_ssh_key_hash = sha256(var.git_ssh_private_key)
-  }
+  # Ingen triggers: bootstrap er en ENGANGSHANDLING. Ændringer i repo/path/protokol/
+  # credentials udløser IKKE et re-bootstrap på et allerede bootstrappet cluster.
+  # Skal du bevidst gen-bootstrappe, gør det eksplicit:
+  #   tofu apply -replace='module.<cluster>_bootstrap.null_resource.gitops_bootstrap'
 
   provisioner "local-exec" {
     command     = "${path.module}/scripts/gitops-bootstrap.sh ${var.cluster_repo} ${var.bootstrap_path} ${var.gotk_repo} ${var.gotk_path} ${var.git_ssh_port}"
@@ -138,6 +133,8 @@ resource "null_resource" "gitops_bootstrap" {
       git_ssh_private_key   = var.git_ssh_private_key
     }
   }
-
+lifecycle {
+  ignore_changes = [triggers]
+}
   depends_on = [null_resource.wait_for_workers, null_resource.netic_git_auth]
 }
