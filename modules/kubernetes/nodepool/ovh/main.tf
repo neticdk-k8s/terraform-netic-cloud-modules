@@ -27,8 +27,13 @@ resource "ovh_cloud_project_kube_nodepool" "pool" {
   monthly_billed = var.nodepool.monthly_billed
   anti_affinity  = var.nodepool.anti_affinity
 
-  attach_floating_ips {
-    enabled = var.nodepool.attach_floating_ips
+  # Blokken udsendes KUN når den er slået til: OVH afviser den (422) på clustere der
+  # ikke understøtter floating IPs — selv med enabled = false. Den skal være unset.
+  dynamic "attach_floating_ips" {
+    for_each = var.nodepool.attach_floating_ips ? [1] : []
+    content {
+      enabled = true
+    }
   }
 
   template {

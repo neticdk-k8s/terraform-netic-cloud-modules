@@ -7,7 +7,7 @@ module "ovh" {
   source = "../ovh"
 
   key_vault = {
-    name       = var.key_vault.name
+    name       = lower(var.key_vault.name)
     region     = var.key_vault.region
     subsidiary = var.key_vault.ovh.subsidiary
   }

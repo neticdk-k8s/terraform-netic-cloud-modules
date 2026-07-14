@@ -72,3 +72,9 @@ variable "git_auth" {
     identity = optional(string, "")
   }))
 }
+
+variable "bootstrap_token" {
+  type        = string
+  default     = ""
+  description = "Stabilt token der er den ENESTE trigger for bootstrap. Send fx en random_uuid.result ind: så kører bootstrap kun én gang, og ændringer i repo/path/protokol/credentials udløser IKKE re-bootstrap. Regenerér tokenet for bevidst at tvinge et re-bootstrap."
+}

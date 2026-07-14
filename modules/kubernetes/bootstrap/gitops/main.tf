@@ -111,17 +111,11 @@ resource "null_resource" "netic_git_auth" {
 }
 
 resource "null_resource" "gitops_bootstrap" {
-  # Re-run bootstrap når repo/path eller git-credentials ændres
+  # Eneste trigger: et stabilt token fra kalderen (fx random_uuid.result). Config-ændringer
+  # (repo/path/protokol/credentials) udløser IKKE re-bootstrap. Vil du bevidst gen-bootstrappe,
+  # regenerér tokenet hos kalderen (tofu apply -replace='random_uuid.bootstrap_token').
   triggers = {
-    cluster_repo     = var.cluster_repo
-    bootstrap_path   = var.bootstrap_path
-    gotk_repo        = var.gotk_repo
-    gotk_path        = var.gotk_path
-    git_ssh_port     = var.git_ssh_port
-    keyscan_image    = var.keyscan_image
-    git_protocol     = var.git_protocol
-    git_auth_hash    = sha256(jsonencode(var.git_auth))
-    git_ssh_key_hash = sha256(var.git_ssh_private_key)
+    bootstrap_token = var.bootstrap_token
   }
 
   provisioner "local-exec" {
@@ -138,6 +132,5 @@ resource "null_resource" "gitops_bootstrap" {
       git_ssh_private_key   = var.git_ssh_private_key
     }
   }
-
   depends_on = [null_resource.wait_for_workers, null_resource.netic_git_auth]
 }
