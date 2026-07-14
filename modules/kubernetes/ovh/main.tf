@@ -66,8 +66,13 @@ resource "ovh_cloud_project_kube_nodepool" "node_pool" {
   anti_affinity  = var.node_config.anti_affinity
 
   # Public floating IP per node (public egress without a gateway/router).
-  attach_floating_ips {
-    enabled = var.node_config.attach_floating_ips
+  # Blokken udsendes KUN når den er slået til: OVH afviser den (422) på clustere der
+  # ikke understøtter floating IPs — selv med enabled = false. Den skal være unset.
+  dynamic "attach_floating_ips" {
+    for_each = var.node_config.attach_floating_ips ? [1] : []
+    content {
+      enabled = true
+    }
   }
 
   template {
