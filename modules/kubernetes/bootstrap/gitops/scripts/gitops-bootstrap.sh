@@ -104,6 +104,14 @@ perl -pe 's/\$\{(\w+)(?::=([^}]*))?\}/$ENV{$1} \/\/ $2 \/\/ ""/ge' gotk-componen
 log "gotk-components applied"
 popd
 
+# =============================================================================
+# Vent på at Flux-controllerne faktisk er klar, før vi fortsætter!
+# =============================================================================
+log "Waiting for Flux controllers to be fully rolled out..."
+kubectl rollout status deployment/source-controller -n netic-gitops-system --timeout=120s
+kubectl rollout status deployment/kustomize-controller -n netic-gitops-system --timeout=120s
+log "Flux controllers are active and running!"
+
 # --- Hent known_hosts fra inde i clusteret og patch secreten ---
 # Køres inde i clusteret så scriptet ikke er afhængig af netværksadgang til git-serveren
 if kubectl get secret kubernetes-config-git-auth -n netic-gitops-system &>/dev/null; then
