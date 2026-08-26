@@ -21,6 +21,8 @@
 Registers a running Kubernetes cluster in **OpenBao/HashiCorp Vault** and lays
 down the standard Netic policy/identity layout for it:
 
+- a KV **v2** engine at `cluster_provider` (`create_kv_mount`, default `true` —
+  set `false` against a central OpenBao where it's managed elsewhere),
 - a `kubernetes` auth backend at `<cluster_provider>/k8s/<cluster_name>`, wired to
   a `vault-auth` token-reviewer ServiceAccount it creates on the cluster,
 - the `external-secrets` role + policy,
