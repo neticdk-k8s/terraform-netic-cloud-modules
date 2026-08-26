@@ -62,6 +62,7 @@ module "gitops" {
 | `git_protocol` | `string` | `https` | Clone-protokol for scriptets egne clones: `https` (token fra `git_auth["netic"]`) eller `ssh` (nøgle fra `git_ssh_private_key`). Ved `ssh` angives ssh-URL'er som repos |
 | `git_ssh_private_key` | `string` | `""` | Privat SSH-nøgle brugt når `git_protocol = "ssh"` *(sensitive)* |
 | `keyscan_image` | `string` | `ghcr.io/linuxserver/openssh-server:latest` | Image til den in-cluster ssh-keyscan-pod — skal have `ssh-keyscan` præinstalleret (runtime-pakkeinstall fejler på clustre med begrænset pod-egress) |
+| `bootstrap_token` | `string` | `""` | Stabilt token der er den ENESTE trigger for bootstrap. Send fx `random_uuid.result` ind: bootstrap kører kun én gang, og ændringer i repo/path/protokol/credentials udløser IKKE re-bootstrap. Regenerér tokenet for bevidst at tvinge et re-bootstrap |
 
 ## Outputs
 
