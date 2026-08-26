@@ -4,7 +4,7 @@ variable "key_vault" {
     location       = string
     resource_group = string
     sku_name       = optional(string, "standard") # standard / premium
-    tenant_id      = optional(string, null)        # default: den aktuelle client_config-tenant
+    tenant_id      = optional(string, null)       # default: den aktuelle client_config-tenant
 
     # Adgangsmodel:
     #   false (default) = access policies. Hver principal i access_principals får en secret-policy (role ignoreres).
