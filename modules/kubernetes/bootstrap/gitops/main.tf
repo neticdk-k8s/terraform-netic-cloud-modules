@@ -87,6 +87,11 @@ resource "null_resource" "netic_git_auth" {
 
   triggers = {
     manifest_hash = sha256(local.git_auth_manifests[each.key])
+    # Uden denne: genskabes klyngen med uændret git-auth-indhold, ser
+    # Terraform intet at genanvende — selvom secret'en kun findes på den
+    # gamle (nu forsvundne) klynge. Se samme klasse fejl i openbao/main.tf's
+    # vault_auth-trigger (kubernetes_host).
+    kubeconfig_hash = sha256(var.kubeconfig)
   }
 
   # Server-side apply: atomisk upsert, så parallelle instanser ikke racer
