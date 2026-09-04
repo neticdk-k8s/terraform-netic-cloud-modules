@@ -116,11 +116,18 @@ resource "null_resource" "netic_git_auth" {
 }
 
 resource "null_resource" "gitops_bootstrap" {
-  # Eneste trigger: et stabilt token fra kalderen (fx random_uuid.result). Config-ændringer
-  # (repo/path/protokol/credentials) udløser IKKE re-bootstrap. Vil du bevidst gen-bootstrappe,
-  # regenerér tokenet hos kalderen (tofu apply -replace='random_uuid.bootstrap_token').
+  # bootstrap_token: stabilt token fra kalderen (fx random_uuid.result). Config-
+  # ændringer (repo/path/protokol/credentials) udløser IKKE re-bootstrap — kun
+  # en manuel regenerering (tofu apply -replace='random_uuid.bootstrap_token').
+  #
+  # git_auth_id: scriptet patcher known_hosts ind i kubernetes-config-git-auth
+  # som et engangs-sideeffekt HER (se scripts/gitops-bootstrap.sh) — udskiftes
+  # den secret uafhængigt (fx en genskabt klynge), skal patchet køres igen,
+  # ellers mangler known_hosts og Flux' GitRepository fejler. Denne trigger
+  # sikrer det sker automatisk.
   triggers = {
     bootstrap_token = var.bootstrap_token
+    git_auth_id     = try(null_resource.netic_git_auth["kubernetes-config"].id, "")
   }
 
   provisioner "local-exec" {
