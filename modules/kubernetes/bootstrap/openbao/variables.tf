@@ -31,8 +31,32 @@ variable "create_kv_mount" {
     Set false against a central, shared OpenBao where the mount is managed
     elsewhere — Terraform would otherwise fail with "path is already in use".
 
-    The mount carries `prevent_destroy`, so removing it takes a deliberate
-    `terraform state rm` rather than a stray plan.
+    Whether the mount is guarded against destruction is a separate question —
+    see `protect_kv_mount`.
+  EOT
+  type        = bool
+  default     = true
+}
+
+variable "protect_kv_mount" {
+  description = <<-EOT
+    Guard the KV mount with `prevent_destroy`.
+
+    true (default): the mount outlives this deployment — a central OpenBao where
+    other clusters keep secrets under the same path, possibly mounted by the
+    first deployment that ran with create_kv_mount = true. Tearing this
+    deployment down must never unmount it.
+
+    false: one OpenBao per service cluster, where the mount holds only this
+    cluster's secrets and dies with the cluster anyway. Set this in test
+    templates, so a teardown does not need `-exclude` plus `state rm`.
+
+    Changing the value relocates the mount between two resource addresses, which
+    plans as destroy + create and would delete every secret under it. Move it
+    with `tofu state mv` instead of applying the change:
+
+      tofu state mv 'module.openbao.vault_mount.kv_protected[0]' \
+                    'module.openbao.vault_mount.kv[0]'
   EOT
   type        = bool
   default     = true

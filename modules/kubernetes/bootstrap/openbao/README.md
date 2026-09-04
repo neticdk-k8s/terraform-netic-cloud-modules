@@ -22,7 +22,8 @@ Registers a running Kubernetes cluster in **OpenBao/HashiCorp Vault** and lays
 down the standard Netic policy/identity layout for it:
 
 - a KV **v2** engine at `cluster_provider` (`create_kv_mount`, default `true` —
-  set `false` against a central OpenBao where it's managed elsewhere),
+  set `false` against a central OpenBao where it's managed elsewhere; guarded by
+  `prevent_destroy` unless `protect_kv_mount = false`),
 - a `kubernetes` auth backend at `<cluster_provider>/k8s/<cluster_name>`, wired to
   a `vault-auth` token-reviewer ServiceAccount it creates on the cluster,
 - the `external-secrets` role + policy,
@@ -107,6 +108,7 @@ The `vault` provider must be configured by the caller. `kubectl` must be on
 | `cluster_name` | `string` | — | Final unique cluster identity string |
 | `cluster_provider` | `string` | — | KV mount / path segment (e.g. `"azure"`, `"ovh"`) |
 | `create_kv_mount` | `bool` | `true` | Mount a KV **v2** engine at `cluster_provider`. Set `false` against a central OpenBao where it already exists |
+| `protect_kv_mount` | `bool` | `true` | Guard the mount with `prevent_destroy`. Set `false` for one-OpenBao-per-cluster, where the mount dies with the cluster. Flipping it relocates the resource — move it with `tofu state mv`, do not apply the change |
 | `kubernetes_host` | `string` | — | Kube API URL (cluster module's `cluster_endpoint`) |
 | `kubeconfig` | `string` (sensitive) | — | Raw kubeconfig, used to create the token-reviewer SA |
 | `alias_mount_accessor` | `string` | `null` → accessor of mount `oidc` | OIDC auth mount accessor |

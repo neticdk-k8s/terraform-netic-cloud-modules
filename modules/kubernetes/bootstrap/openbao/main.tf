@@ -40,16 +40,45 @@ data "vault_auth_backend" "oidc" {
 # the symptom is misleading: auth succeeds, the SecretStore reports "store
 # validated", and every read fails with "Secret does not exist" rather than a
 # permission error.
+
+# Split in two because `lifecycle` accepts only literals — `prevent_destroy =
+# var.protect_kv_mount` is rejected at parse time. `count` picks exactly one, so
+# at most one of these ever exists. Same workaround as network/floating-ip/ovh
+# and network/public-ip/ovh.
+#
+# WARNING: flipping protect_kv_mount moves the mount between these two addresses,
+# which plans as destroy + create and would delete every secret under it. Use
+# `tofu state mv` to relocate it instead of applying the change.
+locals {
+  # Shared so the two blocks below cannot drift apart.
+  kv_mount = {
+    path        = var.cluster_provider
+    type        = "kv"
+    options     = { version = "2" }
+    description = "KV v2 store for clusters registered under ${var.cluster_provider}"
+  }
+}
+
 resource "vault_mount" "kv" {
-  count = var.create_kv_mount ? 1 : 0
+  count = var.create_kv_mount && !var.protect_kv_mount ? 1 : 0
 
-  path        = var.cluster_provider
-  type        = "kv"
-  options     = { version = "2" }
-  description = "KV v2 store for clusters registered under ${var.cluster_provider}"
+  path        = local.kv_mount.path
+  type        = local.kv_mount.type
+  options     = local.kv_mount.options
+  description = local.kv_mount.description
+}
 
-  # The mount holds every secret for every cluster under this path. Terraform
-  # must never be able to take it down and take the data with it.
+# The mount holds every secret for every cluster under this path. Where it
+# outlives this deployment, Terraform must never be able to take it down and
+# take the data with it.
+resource "vault_mount" "kv_protected" {
+  count = var.create_kv_mount && var.protect_kv_mount ? 1 : 0
+
+  path        = local.kv_mount.path
+  type        = local.kv_mount.type
+  options     = local.kv_mount.options
+  description = local.kv_mount.description
+
   lifecycle {
     prevent_destroy = true
   }

@@ -12,3 +12,8 @@ output "uri" {
   description = "Vault URI (null på OVH)"
   value       = local.is_ovh ? one(module.ovh[*].uri) : one(module.azure[*].uri)
 }
+
+output "iam_urn" {
+  description = "IAM URN for OKMS-instansen (kun OVH — bruges til ovh_iam_policy). null på Azure."
+  value       = local.is_ovh ? one(module.ovh[*].iam_urn) : null
+}

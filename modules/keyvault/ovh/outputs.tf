@@ -12,3 +12,8 @@ output "uri" {
   description = "REST-endpoint til OKMS"
   value       = ovh_okms.this.rest_endpoint
 }
+
+output "iam_urn" {
+  description = "IAM URN for OKMS-instansen — bruges som resource i en ovh_iam_policy for at give adgang (fx OpenBao's auto-unseal)"
+  value       = ovh_okms.this.iam.urn
+}
