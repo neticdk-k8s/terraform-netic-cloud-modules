@@ -48,6 +48,26 @@ output "gateway_ips" { value = module.network_v2.gateway_ips }
 output "subnet_ids"  { value = module.network_v2.subnet_ids }
 ```
 
+### Custom gateway (firewall/NVA som default route — "som i Azure")
+
+Routing sidder på **subnettet** i OpenStack, ikke på netværket. `gateway_host`
+svarer til en Azure route table med `0.0.0.0/0 → NVA`, og `host_routes` til
+specifikke UDR-ruter. Begge udleveres via DHCP (virker ved lease/renew).
+
+```hcl
+regions = [{
+  region       = "EU-SOUTH-MIL"
+  subnet       = "10.0.25.0/24"
+  gateway_host = 254                  # OPNsense på .254 er default gateway
+  host_routes  = [
+    { destination = "192.168.24.0/22", nexthop = "10.0.25.254" } # Azure via VPN
+  ]
+}]
+```
+
+Firewall-porten på `.254` oprettes separat (`network/port/ovh`, `ip_forwarding = true`)
+så Neutron anti-spoofing er slået fra på den.
+
 ## Inputs
 
 | Name | Type | Default | Description |
@@ -60,6 +80,8 @@ output "subnet_ids"  { value = module.network_v2.subnet_ids }
 | `network.regions[].dhcp` | `bool` | `true` | DHCP på subnettet |
 | `network.regions[].no_gateway` | `bool` | `false` | `true` slår default-rute fra |
 | `network.regions[].dns_nameservers` | `list(string)` | `null` | Custom DNS; `null` = OVH default resolver |
+| `network.regions[].gateway_host` | `number` | `null` | Host-index for custom gateway, fx `254` → `x.x.x.254` (firewall/NVA). `null` = OVH vælger første IP |
+| `network.regions[].host_routes` | `list(object({destination, nexthop}))` | `[]` | Statiske ruter via DHCP (option 121), fx Azure-range via firewall. Oprettes med `openstack_networking_subnet_route_v2` (subnet v2 i OVH-provideren har ingen host-route-argument) |
 
 ## Outputs
 
