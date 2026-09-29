@@ -14,8 +14,11 @@ resource "openstack_networking_port_v2" "port" {
   network_id            = var.port.network_id
   port_security_enabled = var.port.ip_forwarding ? false : null
 
+  # No fixed IP => Neutron's DHCP never answers this port (guest sets its own IP).
+  no_fixed_ip = var.port.dhcp_lease ? null : true
+
   dynamic "fixed_ip" {
-    for_each = var.port.static_ip != null ? [1] : []
+    for_each = var.port.dhcp_lease && var.port.static_ip != null ? [1] : []
     content {
       subnet_id  = var.port.subnet_id
       ip_address = var.port.static_ip
@@ -26,6 +29,10 @@ resource "openstack_networking_port_v2" "port" {
     precondition {
       condition     = var.port.static_ip == null || var.port.subnet_id != null
       error_message = "port.subnet_id must be set when port.static_ip is set."
+    }
+    precondition {
+      condition     = var.port.dhcp_lease || var.port.ip_forwarding
+      error_message = "port.dhcp_lease = false requires port.ip_forwarding = true (the guest's IP is unknown to Neutron, so anti-spoofing would drop its traffic)."
     }
   }
 }

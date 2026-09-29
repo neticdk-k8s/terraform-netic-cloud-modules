@@ -5,6 +5,11 @@ variable "port" {
     subnet_id     = optional(string, null)
     static_ip     = optional(string, null)
     ip_forwarding = optional(bool, false)
+    # false = port is created WITHOUT a fixed IP in Neutron, so it gets no DHCP
+    # lease at all; the guest configures its IP itself (static_ip is then only
+    # informational). Requires ip_forwarding = true (no anti-spoofing), otherwise
+    # traffic from the unregistered IP is dropped.
+    dhcp_lease = optional(bool, true)
   })
   description = <<-EOT
     A single OpenStack (OVH) network port.
@@ -18,5 +23,9 @@ variable "port" {
                      = false), turning off BOTH anti-spoofing AND security groups
                      on the port. Required for firewall/router/VPN VMs that
                      forward traffic not addressed to their own IP.
+    - dhcp_lease:    false => no fixed IP in Neutron and therefore no DHCP lease.
+                     Use on a firewall port that owns the subnet's gateway IP:
+                     a lease would hand it a default route / host routes pointing
+                     at itself. The guest sets static_ip itself (e.g. config.xml).
   EOT
 }
