@@ -22,3 +22,8 @@ output "nsg_ids" {
   value       = local.is_ovh ? null : one(module.azure[*].nsg_ids)
   description = "Map of subnet names to NSG IDs (Azure only, null for OVH)"
 }
+
+output "gateway_ips" {
+  value       = local.is_ovh ? one(module.ovh[*].gateway_ips) : null
+  description = "Map of region to subnet gateway IP (OVH only, null for Azure)"
+}

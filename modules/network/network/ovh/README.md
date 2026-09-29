@@ -1,93 +1,91 @@
 # Network — OVHcloud
 
-Provisions a private vRack network and one subnet per region on OVHcloud. A single VLAN spans all regions; subnets are created independently per region with configurable DHCP and IP allocation ranges.
+Privat vRack-net med ét subnet pr. region. Subnettet oprettes med
+`ovh_cloud_project_network_private_subnet_v2`, som (i modsætning til det
+klassiske subnet) understøtter custom gateway-IP og DNS via DHCP.
 
-## Resources created
+Bruges normalt via [`../wrapper`](../wrapper) (fælles interface for OVH og Azure),
+men kan også kaldes direkte.
 
-| Resource | Description |
-|----------|-------------|
-| `ovh_cloud_project_network_private` | Private vRack network (one VLAN across all regions) |
-| `ovh_cloud_project_network_private_subnet` | Subnet per region with DHCP and allocation range |
+> Modulet erstatter det tidligere `network-v2/ovh`. Ressource-adresserne er de
+> samme, så et direkte kald kan skifte `source` fra `network-v2/ovh` til
+> `network/ovh` uden ændringer i plan.
+
+## Ressourcer
+
+| Ressource | Beskrivelse |
+|-----------|-------------|
+| `ovh_cloud_project_network_private` | Privat vRack-net (ét VLAN på tværs af regioner) |
+| `ovh_cloud_project_network_private_subnet_v2` | Subnet pr. region (gateway, DHCP, DNS, allocation pool) |
+| `openstack_networking_subnet_route_v2` | Host routes pr. subnet (DHCP option 121) — kun hvis `host_routes` er sat |
 
 ## Usage
 
 ```hcl
 module "network" {
-  source = "./modules/network/ovh"
+  source = "github.com/neticdk-k8s/terraform-netic-cloud-modules//modules/network/network/ovh"
 
   ovh_project_id = var.ovh_project_id
-  network_name   = "my-private-network"
-  vlan_id        = 100
 
-  regions = [
-    {
-      region = "GRA11"
-      subnet = "10.0.0.0/24"
-    },
-    {
-      region              = "SBG5"
-      subnet              = "10.0.1.0/24"
-      dhcp                = false
-      ip_allocation_start = 50
-      ip_allocation_stop  = 150
-    }
-  ]
+  network = {
+    name    = "vnet-example"
+    vlan_id = 334
+    regions = [
+      {
+        region = "EU-SOUTH-MIL"
+        subnet = "10.0.25.0/24"
+        dhcp   = true
+
+        # Valgfrit:
+        # ip_allocation_start = 10    # DHCP-pool .10-.200 (begge eller ingen)
+        # ip_allocation_stop  = 200
+        # gateway_host        = 254   # firewall/NVA på .254 som default route
+        # host_routes = [
+        #   { destination = "192.168.24.0/22", nexthop = "10.0.25.254" } # fx Azure via VPN
+        # ]
+        # dns_nameservers = ["1.1.1.1"] # null = OVH's resolver
+      }
+    ]
+  }
 }
 ```
 
+### Custom gateway ("som i Azure")
+
+Routing sidder på **subnettet** i OpenStack, ikke på netværket. `gateway_host`
+svarer til en Azure route table med `0.0.0.0/0 → NVA`, og `host_routes` til
+specifikke UDR-ruter. Begge udleveres via DHCP (virker ved lease/renew).
+
+Firewall-porten på gateway-IP'en oprettes separat med
+[`../../port/ovh`](../../port/ovh) (`ip_forwarding = true`, `dhcp_lease = false`),
+så anti-spoofing er slået fra og firewallen ikke får en default route til sig selv.
+
+> MKS Standard (3AZ-regioner) kræver en OVH-router som gateway på node-subnettet
+> — en firewall på `.254` accepteres (endnu) ikke dér.
+
 ## Inputs
 
-| Name | Type | Description |
-|------|------|-------------|
-| `ovh_project_id` | `string` | OVH Public Cloud project ID |
-| `network_name` | `string` | Name of the private network |
-| `vlan_id` | `number` | VLAN ID — must be unique per vRack |
-| `regions` | `list(object)` | Regions and their subnet configurations (see below) |
-| `no_gateway` | `bool` | Disable gateway on all subnets (default: `false`) |
-
-### `regions` list entry
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `region` | `string` | — | OVH region (e.g. `"GRA11"`) |
-| `subnet` | `string` | — | Subnet CIDR (e.g. `"10.0.0.0/24"`) |
-| `dhcp` | `bool` | `true` | Enable DHCP on the subnet |
-| `ip_allocation_start` | `number` | `10` | Host offset for the DHCP pool start address |
-| `ip_allocation_stop` | `number` | `200` | Host offset for the DHCP pool stop address |
-
-`ip_allocation_start = 10` on subnet `10.0.0.0/24` resolves to `10.0.0.10`.
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `ovh_project_id` | `string` | — | OVH project ID / service name |
+| `network.name` | `string` | — | Netværkets navn |
+| `network.vlan_id` | `number` | — | vRack VLAN ID |
+| `network.regions[].region` | `string` | — | OVH-region, fx `"EU-SOUTH-MIL"` |
+| `network.regions[].subnet` | `string` | — | CIDR, fx `"10.0.25.0/24"` |
+| `network.regions[].dhcp` | `bool` | `true` | DHCP på subnettet |
+| `network.regions[].no_gateway` | `bool` | `false` | `true` = ingen gateway/default route |
+| `network.regions[].ip_allocation_start` | `number` | `null` | Første host-index i DHCP-poolen (sæt begge eller ingen). Wrapperen har default `10` |
+| `network.regions[].ip_allocation_stop` | `number` | `null` | Sidste host-index i DHCP-poolen. Wrapperen har default `200` |
+| `network.regions[].gateway_host` | `number` | `null` | Host-index for custom gateway, fx `254`. `null` = OVH vælger første IP |
+| `network.regions[].host_routes` | `list(object({destination, nexthop}))` | `[]` | Statiske ruter via DHCP (option 121) |
+| `network.regions[].dns_nameservers` | `list(string)` | `null` | Custom DNS; `null` = OVH default resolver |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| `network_id` | OpenStack UUID of the private network in the first region (single-region use) |
-| `network_ids` | Map of region → OpenStack network UUID (per-region; an OVH private net has a separate UUID per region) |
-| `network_name` | Name of the private network |
-| `subnet_ids` | Map of region → subnet ID |
-
-## Provider
-
-```hcl
-provider "ovh" {
-  endpoint           = "ovh-eu"
-  application_key    = var.ovh_application_key
-  application_secret = var.ovh_application_secret
-  consumer_key       = var.ovh_consumer_key
-}
-```
-
-## Architecture
-
-OVHcloud private networks are **multi-region resources** with a unique design:
-- One private vRack network spans all specified regions
-- One subnet per region (not multiple subnets per region)
-- Each subnet has independent DHCP and IP allocation settings
-
-This differs fundamentally from Azure, where a VNet exists in a single region but can contain multiple subnets within that region. OVH's architecture prioritizes network continuity across regions over subnet flexibility within a region.
-
-## Notes
-
-- OVHcloud allows only one network per VLAN ID within a vRack. Reusing a `vlan_id` across multiple module calls will cause a conflict.
-- The network name is passed to VMs via `network_names` in the `vm` module — make sure they match.
-- One subnet per region is a platform constraint; you cannot create multiple subnets in the same region using this module.
+| `network_id` | OpenStack netværks-UUID (første region) |
+| `network_ids` | Map region → OpenStack netværks-UUID |
+| `network_name` | Netværkets navn |
+| `subnet_ids` | Map region → OpenStack subnet-UUID |
+| `gateway_ips` | Map region → subnettets gateway-IP |
