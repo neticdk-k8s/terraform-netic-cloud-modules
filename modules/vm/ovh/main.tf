@@ -24,15 +24,19 @@ resource "tls_private_key" "ssh_key" {
   rsa_bits  = 4096
 }
 
-resource "ovh_cloud_project_ssh_key" "default" {
-  count        = local.is_windows ? 0 : 1
-  service_name = var.ovh_project_id
-  name         = "${var.vm.name}-key"
-  public_key   = local.create_ssh_key ? trimspace(tls_private_key.ssh_key[0].public_key_openssh) : trimspace(var.vm.ssh_public_key)
+# The VM only needs the Nova keypair below. ovh_cloud_project_ssh_key was dropped:
+# in 3AZ regions (MIL/PAR) OVH stores it as a Nova keypair with the same name,
+# so the two resources collided ("Key pair '<name>-key' already exists").
+# Forget it from existing states without deleting it (it may BE the Nova keypair).
+removed {
+  from = ovh_cloud_project_ssh_key.default
+
+  lifecycle {
+    destroy = false
+  }
 }
 
-# openstack_compute_keypair_v2 is required so the compute API can find the key
-# (region-scoped). ovh_cloud_project_ssh_key is only visible in the OVH management plane.
+# Region-scoped keypair the compute API uses when booting the VM
 resource "openstack_compute_keypair_v2" "default" {
   count      = local.is_windows ? 0 : 1
   name       = "${var.vm.name}-key"

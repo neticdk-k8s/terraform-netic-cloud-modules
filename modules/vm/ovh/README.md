@@ -8,7 +8,6 @@ Provisions a virtual machine on OVHcloud via OpenStack. Supports both Linux and 
 |----------|-----------|-------------|
 | `tls_private_key` | Linux + no `sshkey` supplied | 4096-bit RSA key pair |
 | `openstack_compute_keypair_v2` | Linux + no `sshkey` supplied | Registers the public key with OpenStack |
-| `ovh_cloud_project_ssh_key` | Linux + no `sshkey` supplied | Registers the public key with OVH |
 | `openstack_compute_instance_v2` | always | The virtual machine (Linux or Windows variant) |
 | `openstack_compute_volume_attach_v2` | per entry in `disk_ids` | Data disk attachment |
 
