@@ -66,6 +66,7 @@ module "opnsense" {
 | `subnet_id` | `string` | `null` | OpenStack subnet UUID — required if `static_ip` is set |
 | `static_ip` | `string` | `null` | Fixed IP to assign (e.g. `x.x.x.254`) |
 | `ip_forwarding` | `bool` | `false` | When `true`, sets `port_security_enabled = false` — disables **both** anti-spoofing **and** security groups on the port |
+| `dhcp_lease` | `bool` | `true` | When `false`, the port is created **without a fixed IP in Neutron** (`no_fixed_ip`), so it gets no DHCP lease; the guest sets its IP itself (`static_ip` is then informational). Requires `ip_forwarding = true` |
 
 ## Outputs
 
@@ -82,6 +83,12 @@ module "opnsense" {
 - **`ip_forwarding = true` is a broad bypass** — there's no way in OpenStack to
   keep security groups active while allowing forwarded/spoofed traffic. Only use
   it on the port(s) that actually need to carry forwarded traffic.
+- **`dhcp_lease = false` is for a firewall that owns the subnet's gateway IP.**
+  With a lease it would receive a default route / host routes pointing at
+  itself on first boot. Side effect: Nova does not list IP-less ports, so a VM
+  attaching them via `network` blocks shows a permanent diff (and is replaced on
+  every apply). Attach such ports with `openstack_compute_interface_attach_v2`
+  to avoid that.
 - **`for_each` keys must be static.** Never key the caller's `for_each` on
   `network_id` or another computed value — key on the network name (or another
   config-known string) and pass computed IDs as map values.

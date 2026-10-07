@@ -15,6 +15,7 @@ Alle moduler følger samme mønster: en `azure/`- og `ovh/`-implementering plus 
 | [Public IP](modules/network/public-ip/wrapper/README.md) | Statisk public IP (Azure) eller floating IP (OVH) |
 | [Security Group](modules/network/security-group/wrapper/README.md) | NSG (Azure) eller OpenStack security group (OVH) |
 | [Object Storage](modules/storage/object/wrapper/README.md) | Blob Storage (Azure) eller S3-bucket (OVH) |
+| [Object Storage Access](modules/storage/object/access/wrapper/README.md) | Adgang til object storage — managed identity (Azure) eller bruger med S3-nøgler (OVH) |
 | [VM](modules/vm/wrapper/README.md) | Linux/Windows VM (Azure eller OVH) |
 
 ## Hurtig start

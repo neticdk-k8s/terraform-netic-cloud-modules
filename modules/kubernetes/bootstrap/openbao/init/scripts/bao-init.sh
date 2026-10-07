@@ -15,6 +15,14 @@ set -e
 
 OUT="$1"
 
+# Every check below goes through kubectl. Without it each attempt fails the same
+# way a not-yet-ready pod does, and the whole timeout burns with no explanation.
+if ! command -v kubectl >/dev/null 2>&1; then
+  echo "ERROR: kubectl not found on PATH." >&2
+  echo "The init step talks to the OpenBao pod with 'kubectl exec'." >&2
+  exit 1
+fi
+
 KUBECONFIG="$(mktemp)"
 trap 'rm -f "$KUBECONFIG"' EXIT
 printf '%s' "$KUBECONFIG_RAW" >"$KUBECONFIG"
@@ -39,14 +47,27 @@ attempts=$((API_TIMEOUT / 5))
 echo "Waiting for the OpenBao API to answer (up to ${API_TIMEOUT}s)..."
 status=""
 for i in $(seq 1 "$attempts"); do
-  if status="$(bao_exec 'bao status -format=json' 2>/dev/null)" && [ -n "$status" ]; then
+  # `bao status` exits 2 while sealed — that is still a valid answer, so failures
+  # are tolerated. But the FIRST attempt keeps its stderr: a bad kubeconfig or an
+  # unreachable API server is indistinguishable from "pod not ready yet" once
+  # silenced, and would otherwise cost the entire timeout to discover.
+  if [ "$i" = 1 ]; then
+    status="$(bao_exec 'bao status -format=json' || true)"
+  else
+    status="$(bao_exec 'bao status -format=json' 2>/dev/null || true)"
+  fi
+
+  if printf '%s' "$status" | grep -q '"initialized"'; then
     break
   fi
-  # `bao status` exits 2 while sealed — that is still a valid answer.
-  if status="$(bao_exec 'bao status -format=json' 2>/dev/null || true)" && \
-     printf '%s' "$status" | grep -q '"initialized"'; then
-    break
+
+  # Every 5 minutes, show what the namespace actually looks like, so a long wait
+  # is visibly alive and a stuck rollout is obvious while it is still happening.
+  if [ $((i % 60)) -eq 0 ]; then
+    echo "  ...still waiting after $((i * 5))s:"
+    kubectl get pods -n "$NAMESPACE" 2>&1 | sed 's/^/    /' || true
   fi
+
   sleep 5
 done
 

@@ -36,7 +36,10 @@ resource "null_resource" "init" {
   }
 
   provisioner "local-exec" {
-    command     = "${path.module}/scripts/bao-init.sh ${local.state_file}"
+    # Both paths are quoted: a working directory containing a space would
+    # otherwise be split into two arguments, and the script would write its
+    # output to a truncated path that no data source can find again.
+    command     = "'${path.module}/scripts/bao-init.sh' '${local.state_file}'"
     working_dir = path.cwd
 
     environment = {

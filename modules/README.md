@@ -44,6 +44,9 @@
 | [object/azure](storage/object/azure/README.md) | Azure Blob Storage account med container |
 | [object/ovh](storage/object/ovh/README.md) | OVH S3-kompatibel object storage bucket |
 | [object/wrapper](storage/object/wrapper/README.md) | Fælles indgangspunkt — vælg cloud via `cloud_provider` |
+| [object/access/azure](storage/object/access/azure/README.md) | Managed identity + role assignments på blob storage |
+| [object/access/ovh](storage/object/access/ovh/README.md) | OVH-bruger med S3-nøgler og bucket-scoped policy |
+| [object/access/wrapper](storage/object/access/wrapper/README.md) | Fælles indgangspunkt — vælg cloud via `access.ovh` / `access.azure` |
 
 ## VM
 

@@ -123,7 +123,9 @@ resource "null_resource" "vault_auth" {
   }
 
   provisioner "local-exec" {
-    command     = "${path.module}/scripts/vault-sa.sh ${local.sa_secret_file}"
+    # Quoted for the same reason as in bootstrap/openbao/init: a path with a
+    # space must survive the shell word splitting local-exec performs.
+    command     = "'${path.module}/scripts/vault-sa.sh' '${local.sa_secret_file}'"
     working_dir = path.cwd
 
     environment = {
