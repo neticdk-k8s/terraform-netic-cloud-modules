@@ -1,22 +1,21 @@
 # OpenBao / Vault — cluster registration & tenant policies
 
-> **Three entry points, two applies.** This folder is the *registration* module,
-> which needs a running, initialised OpenBao. Start with [`seal/`](./seal), then
-> [`init/`](./init) — both belong to the same first apply. None of the three
-> deploys the OpenBao server itself; that is GitOps/Helm's job.
+> **Two ways to register a cluster.** Both start with [`seal/`](./seal) and
+> [`init/`](./init). None of them deploys the OpenBao server itself; that is
+> GitOps/Helm's job.
+>
+> | | [`register/`](./register) — **one apply** | this module (`./`) — two applies |
+> |---|---|---|
+> | OpenBao | in the same cluster | central / reached over the network |
+> | How | `bao` via `kubectl exec` | `vault` provider (needs token at plan time) |
+> | Tenant groups, operator/provider groups, PKI | — | yes |
 >
 > ```
-> apply 1   seal/<cloud>/ → openbao-seal Secret → OpenBao starts & auto-unseals
->           init/         → bao operator init  → root token + recovery keys
->                                              → store them in a secret store
->
-> apply 2   ./            → VAULT_ADDR + token → auth backend, policies, roles
+> seal/<cloud>/ → init/ → register/              one apply   (in-cluster OpenBao)
+> seal/<cloud>/ → init/ ║ ./                     two applies (central OpenBao)
 > ```
 >
-> Registration must be a separate apply: its `vault` provider is configured at
-> **plan** time and needs the token that `init/` produces. No `depends_on`
-> bridges provider configuration. With the token persisted to a secret store,
-> there is still no manual step between the two applies.
+> The rest of this page is about `./`.
 
 Registers a running Kubernetes cluster in **OpenBao/HashiCorp Vault** and lays
 down the standard Netic policy/identity layout for it:

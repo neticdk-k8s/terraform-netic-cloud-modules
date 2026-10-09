@@ -38,11 +38,14 @@ needs, and rolling the StatefulSet on change.
 ```
 apply 1   seal/<cloud>/ → openbao-seal Secret → OpenBao starts & auto-unseals
           ../init/      → bao operator init  → root token + recovery keys
+          ../register/  → bao via kubectl exec → auth, policy, role  (in-cluster OpenBao)
 
-apply 2   ../           → VAULT_ADDR + token → auth backend, policies, roles
+apply 2   ../           → VAULT_ADDR + token → auth backend, policies, roles  (central OpenBao)
 ```
 
-`init/` is a module too, so the whole first apply is automated. Registration is
-a separate apply because its `vault` provider needs the token at plan time.
+`init/` is a module too, so the whole first apply is automated. For an
+in-cluster OpenBao, `register/` finishes in the same apply. Only the parent
+module needs a second apply, because its `vault` provider needs the token at
+plan time.
 
 None of these modules deploys the OpenBao server — that is GitOps/Helm's job.

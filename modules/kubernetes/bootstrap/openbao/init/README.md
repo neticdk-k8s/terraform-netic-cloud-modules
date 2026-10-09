@@ -15,24 +15,32 @@ module "openbao_init" {
   depends_on = [module.openbao_seal] # unseal must be configured first
 }
 
-# Persist the credentials — OVH example
+# Persist the credentials — OVH example (version.data is write-only)
 resource "ovh_okms_secret" "openbao_root" {
   okms_id = data.ovh_okms_resource.this.id
-  path    = "openbao/netic-k8s-services-test/root"
-  version = 1
-  value   = jsonencode({
-    root_token    = module.openbao_init.root_token
-    recovery_keys = module.openbao_init.recovery_keys
-  })
+  path    = "openbao/${local.cluster_name}/root"
+
+  version = {
+    data = jsonencode({
+      root_token    = module.openbao_init.root_token
+      recovery_keys = module.openbao_init.recovery_keys
+    })
+  }
 }
 ```
 
-Read them back in the *next* apply, where the registration module runs:
+## Next step
+
+- **In-cluster OpenBao:** [`../register`](../register) in the **same** apply,
+  with `root_token = module.openbao_init.root_token`.
+- **Central OpenBao:** the parent module in a **second** apply — its `vault`
+  provider needs the token at plan time, so read it back from the secret store:
 
 ```hcl
 data "ovh_okms_secret" "openbao_root" {
-  okms_id = data.ovh_okms_resource.this.id
-  path    = "openbao/netic-k8s-services-test/root"
+  okms_id      = data.ovh_okms_resource.this.id
+  path         = "openbao/${local.cluster_name}/root"
+  include_data = true
 }
 
 provider "vault" {
@@ -40,20 +48,6 @@ provider "vault" {
   token   = jsondecode(data.ovh_okms_secret.openbao_root.data).root_token
 }
 ```
-
-## Why this is still two applies
-
-The registration module's `vault` provider is configured at **plan** time and
-needs an address and token before any resource is evaluated. That token is what
-this module produces. No `depends_on` bridges provider configuration, so the two
-phases are separate applies:
-
-```
-apply 1:  OKMS → PAT → IAM policy → cluster → gitops → seal → init → store token
-apply 2:  read token → register cluster (auth backend, policies, roles)
-```
-
-Two steps, but no manual action between them.
 
 ## Idempotency
 
